@@ -1,0 +1,62 @@
+[
+  {
+    "id": "3",
+    "name": "Budi Priyo Utomo",
+    "email": "utomo2@gmail.com",
+    "email_verified_at": null,
+    "password": "$2y$12$9UhT1dxoIVQY.fVPVlDtruoM.Qlwhsu73TH6xsfT0HusAwiaNqlG2",
+    "remember_token": null,
+    "created_at": "2026-02-10 03:01:49",
+    "updated_at": "2026-02-10 03:01:49"
+  },
+  {
+    "id": "4",
+    "name": "topan suryadi",
+    "email": "topan@sushitei.co.id",
+    "email_verified_at": null,
+    "password": "$2y$12$wRhWxdMQswkdyNyr9fV/f.v4EuHkSSkV1GUBfI5muaaCHFY5qHp2W",
+    "remember_token": null,
+    "created_at": "2026-02-10 03:18:09",
+    "updated_at": "2026-02-10 03:18:09"
+  },
+  {
+    "id": "5",
+    "name": "sophiani",
+    "email": "sophiani@maharasa.id",
+    "email_verified_at": null,
+    "password": "$2y$12$56nZyXCmdIh5LxR33/R7QOs1mgmjI3gJbe4dK9NY.Q0X.30rTLEyO",
+    "remember_token": "a0RxRO2bV9VyVUwz2IOjf24FLPRkit80D8zLHcRXaAImA4cCb88yelY1kjAq",
+    "created_at": "2026-02-10 03:22:26",
+    "updated_at": "2026-02-10 03:22:26"
+  },
+  {
+    "id": "6",
+    "name": "Siska",
+    "email": "siska@maharasa.id",
+    "email_verified_at": null,
+    "password": "$2y$12$X0L.fexmyEr9qLh5peYK6ObQmHCVynqsY6PgxRW.kbHFDek6xynsK",
+    "remember_token": "oNGvgltrbJlLrXdWUdFkiRguKodLJPGW2ADjfy7IZ64W1OcPv0mXuSs3I2pg",
+    "created_at": "2026-02-11 01:05:51",
+    "updated_at": "2026-02-11 01:05:51"
+  },
+  {
+    "id": "7",
+    "name": "Asri",
+    "email": "admacc1@maharasa.id",
+    "email_verified_at": null,
+    "password": "$2y$12$vu9fEPTPiXpdPygw8JTfEuVElRgb9rIvtcvIcn008GOAadRDI9dU6",
+    "remember_token": null,
+    "created_at": "2026-02-11 01:06:42",
+    "updated_at": "2026-02-11 01:06:42"
+  },
+  {
+    "id": "8",
+    "name": "Gita",
+    "email": "gita@maharasa.id",
+    "email_verified_at": null,
+    "password": "$2y$12$0ozd7jvufGYzE1SMfoRCiOFOYJa7tE65R8XQaOcfTlJ7ZiikHrpH6",
+    "remember_token": "eB0DE06pxdR8FVTVPPEdYaw2FN8e6OTC4irx61q8AJQZtD1Ru9zP4KhztWHn",
+    "created_at": "2026-02-11 01:07:35",
+    "updated_at": "2026-02-11 01:07:35"
+  }
+]
