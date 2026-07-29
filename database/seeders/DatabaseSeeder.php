@@ -12,13 +12,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // \App\Models\User::factory(10)->create();
+        // Urutan wajib: master perusahaan lebih dulu, karena
+        // TukarFakturLegacySeeder menyambungkan perusahaan_id lewat nama.
+        $this->call([
+            PerusahaanMasterSeeder::class,
+            UserLegacySeeder::class,
+            TukarFakturLegacySeeder::class,
+        ]);
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
-
-        $this->call(PerusahaanSeeder::class);
+        // PerusahaanSeeder (versi lama) sengaja tidak dipanggil: master kini
+        // bersumber dari file Excel, bukan diturunkan dari data pengajuan.
     }
 }
