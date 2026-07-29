@@ -59,7 +59,8 @@
                     <!-- Info -->
                     <div class="alert alert-light border small mb-4">
                         <i class="bi bi-info-circle me-1"></i>
-                        Pastikan data diisi dengan benar dan email aktif.
+                        Pastikan nama supplier di tulis dengan huruf kapital sesuai dengan nama yang terdaftar dan email sudah diisi dengan benar.
+                        Submit total kontrabon tiap PT hanya 1x, contoh : penagihan ke PT Panca Abadi Nan Jaya : 1x submit, penagihan ke PT Maharasa Jaya Abadi 1x submit
                     </div>
 
                     @if($errors->any())
