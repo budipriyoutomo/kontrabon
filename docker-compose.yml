@@ -1,0 +1,72 @@
+name: kontrabon
+
+# ---------------------------------------------------------------------------
+# Satu container: nginx + php-fpm + queue worker (+ scheduler, opsional),
+# semuanya dijaga supervisor. Lihat docker/supervisor/supervisord.conf.
+#
+# Di VPS ini port 80 / 81 / 443 sudah dipegang `nginx-proxy-manager`,
+# dan 8080 dipakai `wuzapi`. Jadi:
+#   - app TIDAK publish port 80/81
+#   - app masuk network bersama, nginx-proxy-manager yang proxy ke sana
+#     (Forward Hostname = kontrabon_app, Forward Port = 80)
+#   - port host 8003 dipublish hanya untuk akses langsung / debug
+#
+# Database TIDAK dibuat di sini. App menyambung ke container mysql
+# (`mysql:8.0.34`) yang sudah jalan terpisah:
+#   - dari dalam network docker : mysql8:3306
+#   - dari host VPS             : 127.0.0.1:3308
+#
+# Jalankan sekali sebelum `docker compose up`:
+#   docker network create maharasa-net
+#   docker network connect maharasa-net mysql8
+#   docker network connect maharasa-net nginx-proxy-manager
+# ---------------------------------------------------------------------------
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: "${DOCKER_UID:-1000}"
+        GID: "${DOCKER_GID:-1000}"
+    image: kontrabon-app:latest
+    container_name: kontrabon_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Timpa nilai .env supaya menunjuk ke container mysql8, bukan 127.0.0.1
+      DB_CONNECTION: "${DOCKER_DB_CONNECTION:-mysql}"
+      DB_HOST: "${DOCKER_DB_HOST:-mysql8}"
+      DB_PORT: "${DOCKER_DB_PORT:-3306}"
+
+      # Proses tambahan di dalam container
+      RUN_QUEUE: "${RUN_QUEUE:-true}"
+      QUEUE_WORKERS: "${QUEUE_WORKERS:-1}"
+      RUN_SCHEDULER: "${RUN_SCHEDULER:-false}"
+
+      RUN_MIGRATIONS: "${RUN_MIGRATIONS:-false}"
+    volumes:
+      - storage-app:/var/www/html/storage/app
+      - storage-logs:/var/www/html/storage/logs
+    expose:
+      - "80"
+    ports:
+      # Akses langsung / debug. Hapus blok ini kalau mau lewat NPM saja.
+      - "${APP_PORT:-8003}:80"
+    networks:
+      - shared
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    stop_grace_period: 90s
+
+volumes:
+  storage-app:
+  storage-logs:
+
+networks:
+  # Network bersama: harus memuat mysql8 dan nginx-proxy-manager
+  shared:
+    external: true
+    name: "${DOCKER_SHARED_NETWORK:-maharasa-net}"
