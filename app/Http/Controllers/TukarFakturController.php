@@ -17,16 +17,21 @@ class TukarFakturController extends Controller
             'PT Sukha Abadi Nanjaya (Song Fa)',
         ];
 
-        $perusahaanList = Perusahaan::active()->orderBy('nama')->get();
-
-        return view('tukarfaktur.create', compact('ptTujuan', 'perusahaanList'));
+        return view('tukarfaktur.create', compact('ptTujuan'));
     }
 
     public function store(TukarFakturStoreRequest $request)
     {
-        // Normalisasi (uppercase no kwitansi, nama perusahaan dari master)
-        // sudah dilakukan di TukarFakturStoreRequest::prepareForValidation().
-        TukarFaktur::create($request->validated());
+        $data = $request->validated();
+
+        // Nama sudah dipastikan cocok persis dengan master oleh form request,
+        // tinggal sambungkan relasinya.
+        $data['perusahaan_id'] = Perusahaan::whereRaw('LOWER(nama) = ?', [mb_strtolower($data['perusahaan_pengaju'])])
+            ->get()
+            ->first(fn ($p) => $p->nama === $data['perusahaan_pengaju'])
+            ?->id;
+
+        TukarFaktur::create($data);
 
         return redirect('/kontrabon/success');
     }

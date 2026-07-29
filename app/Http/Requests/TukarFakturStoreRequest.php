@@ -17,9 +17,10 @@ class TukarFakturStoreRequest extends FormRequest
     {
         return [
             'pt_tujuan' => ['required', 'string', 'max:255'],
-            'perusahaan_id' => ['nullable', 'uuid', 'exists:perusahaans,id'],
             'perusahaan_pengaju' => [
                 'required', 'string', 'max:255',
+                // Harus cocok persis dengan master data perusahaan.
+                fn ($attribute, $value, $fail) => $this->validasiNamaPerusahaan($value, $fail),
                 // 1 perusahaan hanya boleh 1 pengajuan ke PT tujuan yang sama
                 // pada tanggal tukar yang sama.
                 Rule::unique('tukar_fakturs', 'perusahaan_pengaju')
@@ -64,27 +65,53 @@ class TukarFakturStoreRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $merge = [
+        $this->merge([
             'no_kwitansi' => $this->no_kwitansi
                 ? strtoupper(trim($this->no_kwitansi))
                 : $this->no_kwitansi,
             'email_penerima' => $this->email_penerima
                 ? strtolower(trim($this->email_penerima))
                 : $this->email_penerima,
-        ];
+            // Hanya spasi di ujung yang dibuang. Sisanya harus sama persis
+            // dengan master, termasuk huruf besar/kecil.
+            'perusahaan_pengaju' => $this->perusahaan_pengaju
+                ? trim($this->perusahaan_pengaju)
+                : $this->perusahaan_pengaju,
+        ]);
+    }
 
-        // Nama perusahaan diambil dari master bila dipilih dari dropdown,
-        // supaya penulisannya konsisten dan pengecekan duplikat akurat.
-        if ($this->filled('perusahaan_id')) {
-            $master = Perusahaan::find($this->perusahaan_id);
-
-            if ($master) {
-                $merge['perusahaan_pengaju'] = $master->nama;
-            }
-        } elseif ($this->filled('perusahaan_pengaju')) {
-            $merge['perusahaan_pengaju'] = trim($this->perusahaan_pengaju);
+    /**
+     * Nama perusahaan wajib terdaftar di master dan ditulis sama persis.
+     */
+    private function validasiNamaPerusahaan($value, $fail): void
+    {
+        if (! is_string($value) || $value === '') {
+            return;
         }
 
-        $this->merge($merge);
+        // Ambil kandidat secara case-insensitive eksplisit (jangan bergantung
+        // pada collation DB), lalu kecocokan persis ditentukan di PHP.
+        $kandidat = Perusahaan::whereRaw('LOWER(nama) = ?', [mb_strtolower($value)])->get();
+
+        $cocok = $kandidat->first(fn ($p) => $p->nama === $value);
+
+        if ($cocok) {
+            if (! $cocok->is_active) {
+                $fail('Perusahaan "' . $cocok->nama . '" sedang tidak aktif. Hubungi finance Maharasa.');
+            }
+
+            return;
+        }
+
+        // Ada yang mirip tapi penulisannya beda -> tunjukkan yang benar.
+        $mirip = $kandidat->first();
+
+        if ($mirip) {
+            $fail('Penulisan nama perusahaan harus sama persis dengan yang terdaftar: "' . $mirip->nama . '".');
+
+            return;
+        }
+
+        $fail('Nama perusahaan tidak terdaftar. Tulis sama persis seperti yang terdaftar di Maharasa, atau hubungi finance untuk pendaftaran.');
     }
 }

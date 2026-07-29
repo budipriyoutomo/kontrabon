@@ -94,43 +94,21 @@
                         <div class="mb-3">
                             <label class="form-label">Nama Perusahaan Pengaju</label>
 
-                            @php
-                                // Setelah validasi gagal, kembalikan ke mode yang tadi dipakai.
-                                $modeLainnya = ! old('perusahaan_id') && filled(old('perusahaan_pengaju'));
-                            @endphp
+                            <input type="text"
+                                   name="perusahaan_pengaju"
+                                   class="form-control @error('perusahaan_pengaju') is-invalid @enderror"
+                                   placeholder="Contoh: PT Vendor Jaya"
+                                   value="{{ old('perusahaan_pengaju') }}"
+                                   autocomplete="off"
+                                   required>
 
-                            @if($perusahaanList->isNotEmpty())
-                                <select @if(! $modeLainnya) name="perusahaan_id" @endif
-                                        id="perusahaanSelect"
-                                        class="form-select @error('perusahaan_pengaju') is-invalid @enderror"
-                                        required>
-                                    <option value="">Pilih Perusahaan</option>
-                                    @foreach($perusahaanList as $perusahaan)
-                                        <option value="{{ $perusahaan->id }}"
-                                            @selected(old('perusahaan_id') === $perusahaan->id)>
-                                            {{ $perusahaan->nama }}
-                                        </option>
-                                    @endforeach
-                                    <option value="__lainnya__" @selected($modeLainnya)>
-                                        Lainnya (belum terdaftar)
-                                    </option>
-                                </select>
+                            <div class="form-text small">
+                                Tulis sama persis seperti nama perusahaan yang terdaftar di Maharasa.
+                            </div>
 
-                                <input type="text"
-                                       name="perusahaan_pengaju"
-                                       id="perusahaanLainnya"
-                                       class="form-control mt-2 @if(! $modeLainnya) d-none @endif"
-                                       placeholder="Contoh: PT Vendor Jaya"
-                                       value="{{ $modeLainnya ? old('perusahaan_pengaju') : '' }}"
-                                       @if(! $modeLainnya) disabled @else required @endif>
-                            @else
-                                <input type="text"
-                                       name="perusahaan_pengaju"
-                                       class="form-control @error('perusahaan_pengaju') is-invalid @enderror"
-                                       placeholder="Contoh: PT Vendor Jaya"
-                                       value="{{ old('perusahaan_pengaju') }}"
-                                       required>
-                            @endif
+                            @error('perusahaan_pengaju')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="row g-3">
@@ -211,31 +189,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('formKontrabon');
     const emailInput = document.querySelector('input[name="email_penerima"]');
     const tanggalInput = document.querySelector('input[name="tanggal_tukar"]');
-
-    // ==============================
-    // PERUSAHAAN: master data / lainnya
-    // ==============================
-    const perusahaanSelect = document.getElementById('perusahaanSelect');
-    const perusahaanLainnya = document.getElementById('perusahaanLainnya');
-
-    if (perusahaanSelect && perusahaanLainnya) {
-        perusahaanSelect.addEventListener('change', function () {
-            const isLainnya = this.value === '__lainnya__';
-
-            perusahaanLainnya.classList.toggle('d-none', !isLainnya);
-            perusahaanLainnya.disabled = !isLainnya;
-            perusahaanLainnya.required = isLainnya;
-
-            if (isLainnya) {
-                // Jangan kirim perusahaan_id berisi "__lainnya__" ke server.
-                this.removeAttribute('name');
-                perusahaanLainnya.focus();
-            } else {
-                this.setAttribute('name', 'perusahaan_id');
-                perusahaanLainnya.value = '';
-            }
-        });
-    }
 
     // ==============================
     // NO KWITANSI: selalu huruf kapital
