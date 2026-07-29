@@ -21,19 +21,24 @@ App pakai **`8003`** (bebas). Ubah lewat `APP_PORT` kalau perlu.
 
 ## 1. Siapkan network bersama
 
-Jalankan sekali di VPS:
+Network yang dipakai: **`helpdesk_maharasa-net`** (default `DOCKER_SHARED_NETWORK` di compose).
+
+`mysql8` dan `nginx-proxy-manager` harus ada di network itu. Cek dulu:
 
 ```bash
-docker network create maharasa-net
-docker network connect maharasa-net mysql8
-docker network connect maharasa-net nginx-proxy-manager
+docker network inspect helpdesk_maharasa-net --format '{{range .Containers}}{{.Name}} {{end}}'
 ```
 
-Cek: `docker network inspect maharasa-net` harus memuat kedua container.
+Sambungkan yang belum ada:
+
+```bash
+docker network connect helpdesk_maharasa-net mysql8
+docker network connect helpdesk_maharasa-net nginx-proxy-manager
+```
 
 `docker network connect` aman — container tetap jalan, network lamanya tidak dicabut.
 
-Kalau `mysql8` dan NPM sudah satu network, pakai saja namanya:
+Pakai network lain:
 
 ```bash
 DOCKER_SHARED_NETWORK=nama-network-anda docker compose up -d
@@ -51,20 +56,86 @@ Cek langsung: `curl -I http://localhost:8003`
 
 ## 3. Daftarkan di Nginx Proxy Manager
 
-Buka NPM di `http://IP-VPS:81` → **Hosts → Proxy Hosts → Add Proxy Host**:
+Buka NPM di `http://IP-VPS:81` → **Hosts → Proxy Hosts → Add Proxy Host**.
+
+Tab **Details**:
 
 | Field | Isi |
 |---|---|
-| Domain Names | domain Anda |
+| Domain Names | domain Anda, mis. `kontrabon.maharasa.id` |
 | Scheme | `http` |
 | Forward Hostname / IP | `kontrabon_app` |
 | Forward Port | `80` |
-| Websockets Support | on |
+| Cache Assets | off |
 | Block Common Exploits | on |
+| Websockets Support | on |
 
-Tab **SSL** → request Let's Encrypt + Force SSL kalau perlu.
+Scheme tetap `http` — itu koneksi NPM → container di dalam network docker. HTTPS berhenti di NPM, tidak perlu sertifikat di dalam container.
 
-Forward pakai nama container (`kontrabon_app`), bukan `IP:8003` — lewat network internal, tidak keluar-masuk host.
+Forward pakai nama container (`kontrabon_app`), bukan `IP:8003`, supaya trafik tidak keluar-masuk host.
+
+## 4. Aktifkan HTTPS
+
+### a. Arahkan DNS
+
+A record domain → IP VPS. Wajib sudah propagasi sebelum request sertifikat, kalau tidak Let's Encrypt gagal validasi.
+
+### b. Request sertifikat di NPM
+
+Edit proxy host tadi → tab **SSL**:
+
+| Field | Isi |
+|---|---|
+| SSL Certificate | `Request a new SSL Certificate` |
+| Force SSL | **on** — redirect http → https |
+| HTTP/2 Support | on |
+| HSTS Enabled | on (aktifkan setelah https terbukti jalan) |
+| Email | email Anda |
+| I Agree to the Let's Encrypt ToS | centang |
+
+Port 80 dan 443 sudah dipegang NPM, jadi validasi HTTP-01 jalan tanpa setup tambahan.
+
+### c. Sesuaikan `.env`
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://kontrabon.maharasa.id
+SESSION_SECURE_COOKIE=true
+```
+
+`APP_URL` dipakai untuk link di email dan PDF — tempat yang tidak punya konteks request, jadi harus benar. `SESSION_SECURE_COOKIE=true` bikin cookie sesi cuma dikirim lewat https.
+
+`APP_ENV=production` juga menyalakan `config:cache` + `route:cache` otomatis di entrypoint.
+
+Lalu:
+
+```bash
+docker compose up -d --force-recreate
+```
+
+### d. Verifikasi
+
+```bash
+curl -I http://kontrabon.maharasa.id     # harus 301 -> https
+curl -I https://kontrabon.maharasa.id    # harus 200
+```
+
+Buka di browser, cek Console tidak ada error mixed content, dan login berhasil (bukti cookie secure jalan).
+
+### Yang sudah disiapkan di sisi app
+
+Tiga hal ini sudah dibereskan, tidak perlu Anda ubah lagi:
+
+| File | Isi | Kenapa |
+|---|---|---|
+| [app/Http/Middleware/TrustProxies.php](app/Http/Middleware/TrustProxies.php) | `protected $proxies = '*'` | tanpa ini `X-Forwarded-Proto` diabaikan → `asset()` keluar `http://` → CSS/JS Vite diblokir browser sebagai mixed content |
+| [docker/nginx/nginx.conf](docker/nginx/nginx.conf) | `map $http_x_forwarded_proto $fastcgi_https` | param `HTTPS` ke php-fpm harus kosong saat http; nilai mentah `"http"` juga dibaca PHP sebagai ON karena string-nya tidak kosong |
+| [docker/nginx/default.conf](docker/nginx/default.conf) | `set_real_ip_from` + `real_ip_header` | IP asli pengunjung, bukan IP container NPM, yang masuk log dan rate limit |
+
+`$proxies = '*'` aman di sini karena container **tidak** publish port 80 ke publik — satu-satunya jalur masuk adalah NPM.
+
+Port `8003` masih terbuka untuk debug. Setelah HTTPS jalan, sebaiknya tutup: hapus blok `ports:` di [docker-compose.yml](docker-compose.yml), atau ikat ke localhost saja dengan `"127.0.0.1:8003:80"`.
 
 ---
 
@@ -140,6 +211,7 @@ Opsional, taruh di shell atau file `.env` (diawali `DOCKER_` agar tidak bentrok 
 | `QUEUE_WORKERS` | `1` | jumlah proses worker |
 | `RUN_SCHEDULER` | `false` | jalankan `schedule:work` |
 | `RUN_MIGRATIONS` | `false` | jalankan `migrate --force` saat start |
+| `SESSION_SECURE_COOKIE` | `false` | set `true` setelah HTTPS aktif di NPM |
 | `DOCKER_UID` / `DOCKER_GID` | `1000` | uid/gid user `app` di container |
 
 ## Perintah harian

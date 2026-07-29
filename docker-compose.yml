@@ -47,6 +47,11 @@ services:
       RUN_SCHEDULER: "${RUN_SCHEDULER:-false}"
 
       RUN_MIGRATIONS: "${RUN_MIGRATIONS:-false}"
+
+      # HTTPS ditangani nginx-proxy-manager. Setelah SSL aktif di NPM,
+      # set SESSION_SECURE_COOKIE=true (cookie hanya dikirim lewat https).
+      # Biarkan false selama masih diakses via http://IP:8003.
+      SESSION_SECURE_COOKIE: "${SESSION_SECURE_COOKIE:-false}"
     volumes:
       - storage-app:/var/www/html/storage/app
       - storage-logs:/var/www/html/storage/logs
