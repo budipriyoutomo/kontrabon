@@ -59,8 +59,10 @@
                     <!-- Info -->
                     <div class="alert alert-light border small mb-4">
                         <i class="bi bi-info-circle me-1"></i>
-                        Pastikan nama supplier di tulis dengan huruf kapital sesuai dengan nama yang terdaftar dan email sudah diisi dengan benar.
-                        Submit total kontrabon tiap PT hanya 1x, contoh : penagihan ke PT Panca Abadi Nan Jaya : 1x submit, penagihan ke PT Maharasa Jaya Abadi 1x submit
+                        <ul class="mb-0 mt-2 ps-3">
+                            <li>Pastikan nama supplier ditulis dengan huruf kapital sesuai dengan nama yang terdaftar dan email sudah diisi dengan benar.</li>
+                            <li>Submit total kontrabon tiap PT hanya <strong>1 kali</strong>. Contoh: penagihan ke <strong>PT PANCA ABADI NAN JAYA</strong> cukup 1x submit, dan penagihan ke <strong>PT MAHARASA JAYA ABADI</strong> juga cukup 1x submit.</li>
+                        </ul>
                     </div>
 
                     @if($errors->any())
@@ -93,7 +95,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Nama Perusahaan Pengaju</label>
+                            <label class="form-label">Nama Supplier</label>
 
                             <input type="text"
                                    name="perusahaan_pengaju"
