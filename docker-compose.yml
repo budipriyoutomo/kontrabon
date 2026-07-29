@@ -69,4 +69,4 @@ networks:
   # Network bersama: harus memuat mysql8 dan nginx-proxy-manager
   shared:
     external: true
-    name: "${DOCKER_SHARED_NETWORK:-maharasa-net}"
+    name: "${DOCKER_SHARED_NETWORK:-helpdesk_maharasa-net}"
