@@ -7,6 +7,8 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                // Dipakai form publik maupun admin, jadi berdiri sendiri.
+                'resources/js/perusahaan-select.js',
             ],
             refresh: true,
         }),

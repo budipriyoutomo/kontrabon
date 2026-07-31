@@ -1,3 +1,152 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Design token ala shadcn/ui.
+ *
+ * Semua warna disimpan sebagai komponen HSL tanpa fungsi hsl() supaya Tailwind
+ * bisa menyisipkan alpha sendiri: bg-primary/50 menjadi hsl(var(--primary) / .5).
+ * Jangan tulis warna dalam bentuk hex di sini.
+ *
+ * Tema gelap aktif lewat class .dark di elemen <html> (darkMode: 'class').
+ */
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 222.2 84% 4.9%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+
+        --primary: 222.2 47.4% 11.2%;
+        --primary-foreground: 210 40% 98%;
+
+        --secondary: 210 40% 96.1%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+
+        --muted: 210 40% 96.1%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+
+        --accent: 210 40% 96.1%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        /*
+         * Di luar palet standar shadcn. Dipakai badge status tukar faktur
+         * (pending / email_sent / verified / billing) dan alert non-destructive.
+         */
+        --success: 142.1 76.2% 36.3%;
+        --success-foreground: 355.7 100% 97.3%;
+
+        --warning: 37.7 92.1% 50.2%;
+        --warning-foreground: 26 83.3% 14.1%;
+
+        --info: 221.2 83.2% 53.3%;
+        --info-foreground: 210 40% 98%;
+
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 222.2 84% 4.9%;
+
+        --radius: 0.5rem;
+
+        /* Sidebar punya permukaan sendiri supaya beda dari area konten. */
+        --sidebar: 0 0% 98%;
+        --sidebar-foreground: 222.2 84% 4.9%;
+        --sidebar-accent: 210 40% 96.1%;
+        --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+        --sidebar-border: 214.3 31.8% 91.4%;
+        --sidebar-ring: 222.2 84% 4.9%;
+    }
+
+    .dark {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+
+        --primary: 210 40% 98%;
+        --primary-foreground: 222.2 47.4% 11.2%;
+
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+
+        --success: 142.1 70.6% 45.3%;
+        --success-foreground: 144.9 80.4% 10%;
+
+        --warning: 47.9 95.8% 53.1%;
+        --warning-foreground: 26 83.3% 14.1%;
+
+        --info: 217.2 91.2% 59.8%;
+        --info-foreground: 222.2 47.4% 11.2%;
+
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 212.7 26.8% 83.9%;
+
+        --sidebar: 222.2 47.4% 7%;
+        --sidebar-foreground: 210 40% 98%;
+        --sidebar-accent: 217.2 32.6% 17.5%;
+        --sidebar-accent-foreground: 210 40% 98%;
+        --sidebar-border: 217.2 32.6% 17.5%;
+        --sidebar-ring: 212.7 26.8% 83.9%;
+    }
+}
+
+@layer base {
+    /*
+     * Aman dipasang ke semua elemen: preflight sudah menyetel border-width 0,
+     * jadi rule ini hanya berpengaruh pada elemen yang memang memakai utility
+     * border-*. Efeknya class `border` polos ikut berganti warna di dark mode.
+     */
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-feature-settings: "rlig" 1, "calt" 1;
+    }
+
+    /* Menyembunyikan elemen ber-x-show sampai Alpine selesai memasang state. */
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /*
+     * Panah untuk <x-select>. Warna SVG tidak bisa membaca CSS variable saat
+     * ditulis sebagai data URI, jadi versi terang dan gelapnya dipisah dengan
+     * nilai yang menyamai token --muted-foreground.
+     */
+    .select-chevron {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-position: right 0.625rem center;
+        background-repeat: no-repeat;
+        background-size: 1rem;
+    }
+
+    .dark .select-chevron {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+}

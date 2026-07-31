@@ -1,305 +1,239 @@
- 
 <x-app-layout>
-    <x-slot name="header">
-        <div>
-            <h2 class="text-lg font-semibold text-slate-800">
-                Detail Tukar Faktur
-            </h2>
-            <p class="text-sm text-slate-500">
-                Informasi lengkap pengajuan tukar faktur
-            </p>
-        </div>
+    <x-slot name="title">Detail Tukar Faktur</x-slot>
+
+    <x-slot name="breadcrumb">
+        <x-breadcrumb :items="[
+            ['label' => 'Tukar Faktur', 'url' => route('admin.tukar-faktur.index')],
+            ['label' => $data->no_kwitansi],
+        ]" />
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div class="mx-auto max-w-4xl space-y-6">
 
-            <!-- SUMMARY -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-
-                    <div>
-                        <div class="text-sm text-slate-500">Jumlah</div>
-                        <div class="text-2xl font-semibold text-slate-800">
-                            Rp {{ number_format($data->jumlah_rupiah, 0, ',', '.') }}
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="text-sm text-slate-500">Status</div>
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                            @class([
-                                'bg-green-100 text-green-700' => $data->status === 'email_sent', 
-                                'bg-slate-100 text-slate-700' => $data->status === 'pending',
-                            ])">
-                            {{ ucfirst($data->status) }}
-                        </span>
-                    </div>
-
+        <x-card>
+            <x-card.content class="flex flex-wrap items-center justify-between gap-6 pt-6">
+                <div class="space-y-1">
+                    <p class="text-sm text-muted-foreground">Jumlah</p>
+                    <p class="text-2xl font-semibold tabular-nums tracking-tight">
+                        Rp {{ number_format($data->jumlah_rupiah, 0, ',', '.') }}
+                    </p>
                 </div>
-            </div>
-            <!-- INFORMASI FAKTUR -->
-<div 
-    x-data="{ openEdit: false }"
-    class="bg-white rounded-xl shadow-sm border border-slate-200 p-6"
->
 
-    <!-- HEADER -->
-    <div class="flex justify-between items-center mb-4">
-        <h3 class="text-sm font-semibold text-slate-700">
-            Informasi Faktur
-        </h3>
+                <div class="space-y-1">
+                    <p class="text-sm text-muted-foreground">Status</p>
+                    <x-badge :status="$data->status" class="px-3 py-1 text-sm" />
+                </div>
+            </x-card.content>
+        </x-card>
 
-        @if($data->status !== 'approved')
-            <button
-                @click="openEdit = true"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-md
-                       bg-indigo-600 text-white text-sm font-medium
-                       hover:bg-indigo-700 transition">
-                ✏️ Edit Data
-            </button>
-        @endif
-    </div>
+        <x-card>
+            <x-card.header>
+                <x-card.title>Verifikasi</x-card.title>
+            </x-card.header>
 
-    <!-- BODY -->
-    <div class="px-6 py-5 text-sm">
-        <div class="grid grid-cols-1 gap-y-4">
+            <x-card.content>
+                @if ($data->verified_at)
+                    <dl class="divide-y">
+                        <x-detail-row label="Diverifikasi oleh">
+                            {{ optional($data->verifier)->name ?? '-' }}
+                        </x-detail-row>
 
-            @foreach([
-                'pt_tujuan' => 'PT Tujuan',
-                'perusahaan_pengaju' => 'Perusahaan Pengaju',
-                'tanggal_tukar' => 'Tanggal Tukar',
-                'no_kwitansi' => 'No Kwitansi',
-                'jumlah_rupiah' => 'Jumlah Rupiah',
-                'nama_pic' => 'Nama PIC',
-                'email_penerima' => 'Email PIC',
-            ] as $field => $label)
+                        <x-detail-row label="Tanggal verifikasi">
+                            {{ $data->verified_at->format('d F Y H:i') }}
+                        </x-detail-row>
 
-                <div class="grid grid-cols-[180px_1fr] gap-x-6 py-2">
-                    <div class="text-slate-500">
-                        {{ $label }}
-                    </div>
-                    <div class="font-medium text-slate-800">
-                        @if($field === 'tanggal_tukar')
-                            {{ \Carbon\Carbon::parse($data->$field)->format('d F Y') }}
-                        @elseif($field === 'jumlah_rupiah')
-                            Rp {{ number_format($data->$field, 0, ',', '.') }}
-                        @else
-                            {{ $data->$field }}
+                        @if ($data->verified_note)
+                            <x-detail-row label="Catatan">{{ $data->verified_note }}</x-detail-row>
                         @endif
-                    </div>
-                </div>
+                    </dl>
+                @elseif ($data->status === \App\Enums\TukarFakturStatus::EmailSent)
+                    @can('verify', $data)
+                        <form
+                            method="POST"
+                            action="{{ route('admin.verifikasi.verify', $data->id) }}"
+                            class="flex flex-col gap-4 sm:flex-row sm:items-end"
+                        >
+                            @csrf
 
-            @endforeach
+                            <x-form-field
+                                label="Catatan verifikasi"
+                                name="verified_note"
+                                hint="Opsional."
+                                class="flex-1"
+                            >
+                                <x-input type="text" name="verified_note" maxlength="255" />
+                            </x-form-field>
 
-        </div>
-    </div>
+                            <x-button type="submit" variant="success">
+                                <x-icon name="badge-check" />
+                                Verifikasi Data Ini
+                            </x-button>
+                        </form>
+                    @else
+                        <p class="text-sm text-muted-foreground">Menunggu diverifikasi oleh verifikator.</p>
+                    @endcan
+                @else
+                    <p class="text-sm text-muted-foreground">
+                        Data belum sampai tahap verifikasi. Verifikasi baru bisa dilakukan setelah
+                        email bukti terkirim ke supplier.
+                    </p>
+                @endif
+            </x-card.content>
+        </x-card>
 
-    <!-- MODAL TAILWIND --> 
-<div 
-    x-show="openEdit"
-    x-transition.opacity
-    class="fixed inset-0 z-50 flex items-center justify-center"
-    style="display: none;"
->
+        <x-card>
+            <x-card.header class="flex-row items-center justify-between space-y-0">
+                <x-card.title>Informasi Faktur</x-card.title>
 
-    <!-- Backdrop -->
-    <div 
-        class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-        @click="openEdit = false">
-    </div>
+                @if ($data->status->isEditable() && auth()->user()->can('update', $data))
+                    <x-button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        x-on:click="$dispatch('open-modal', 'edit-tukar-faktur')"
+                    >
+                        <x-icon name="pencil" />
+                        Edit Data
+                    </x-button>
+                @endif
+            </x-card.header>
 
-    <!-- Modal Box -->
-    <div 
-        x-transition.scale
-        class="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl 
-               border border-slate-200
-               max-h-[85vh] overflow-y-auto"
-    >
+            <x-card.content>
+                <dl class="divide-y">
+                    <x-detail-row label="PT Tujuan">{{ $data->pt_tujuan }}</x-detail-row>
+                    <x-detail-row label="Perusahaan Pengaju">{{ $data->perusahaan_pengaju }}</x-detail-row>
+                    <x-detail-row label="Tanggal Tukar">
+                        {{ \Carbon\Carbon::parse($data->tanggal_tukar)->format('d F Y') }}
+                    </x-detail-row>
+                    <x-detail-row label="No Kwitansi">{{ $data->no_kwitansi }}</x-detail-row>
+                    <x-detail-row label="Jumlah Rupiah">
+                        Rp {{ number_format($data->jumlah_rupiah, 0, ',', '.') }}
+                    </x-detail-row>
+                    <x-detail-row label="Nama PIC">{{ $data->nama_pic }}</x-detail-row>
+                    <x-detail-row label="Email PIC">{{ $data->email_penerima }}</x-detail-row>
+                </dl>
+            </x-card.content>
+        </x-card>
 
-        <!-- Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b bg-slate-50 rounded-t-2xl">
-            <div>
-                <h3 class="text-lg font-semibold text-slate-800">
-                    Edit Tukar Faktur
-                </h3>
-                <p class="text-xs text-slate-500">
-                    Perbarui informasi faktur
-                </p>
-            </div>
+        <x-card>
+            <x-card.header>
+                <x-card.title>Informasi Pembayaran</x-card.title>
+            </x-card.header>
 
-            <button 
-                @click="openEdit = false"
-                class="text-slate-400 hover:text-slate-600 text-xl transition">
-                ×
-            </button>
-        </div>
-
-        <!-- Body -->
-        <form method="POST"
-              action="{{ route('admin.tukar-faktur.update', $data->id) }}"
-              class="px-6 py-6 space-y-5">
-            @csrf
-            @method('PUT')
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        PT Tujuan
-                    </label>
-                    <input type="text" name="pt_tujuan"
-                        value="{{ $data->pt_tujuan }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        Perusahaan Pengaju
-                    </label>
-                    <input type="text" name="perusahaan_pengaju"
-                        value="{{ $data->perusahaan_pengaju }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        Tanggal Tukar
-                    </label>
-                    <input type="date" name="tanggal_tukar"
-                        value="{{ $data->tanggal_tukar }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        No Kwitansi
-                    </label>
-                    <input type="text" name="no_kwitansi"
-                        value="{{ $data->no_kwitansi }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        Jumlah Rupiah
-                    </label>
-                    <input type="number" name="jumlah_rupiah"
-                        value="{{ $data->jumlah_rupiah }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        Nama PIC
-                    </label>
-                    <input type="text" name="nama_pic"
-                        value="{{ $data->nama_pic }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-600 mb-1">
-                        Email Penerima
-                    </label>
-                    <input type="email" name="email_penerima"
-                        value="{{ $data->email_penerima }}"
-                        class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                </div>
-
-            </div>
-
-            <!-- Footer -->
-            <div class="flex justify-end gap-3 pt-4 border-t mt-6">
-                <button type="button"
-                        @click="openEdit = false"
-                        class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm hover:bg-slate-200 transition">
-                    Batal
-                </button>
-
-                <button type="submit"
-                        class="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
-                    Simpan Perubahan
-                </button>
-            </div>
-
-        </form>
-
-    </div>
-</div>
-
-
-
-</div>
-
-
-            <!-- PAYMENT -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <h3 class="text-sm font-semibold text-slate-700 mb-4">
-                        Informasi Pembayaran
-                    </h3>
-
-                    <form method="POST"
+            <x-card.content class="space-y-3">
+                {{-- Mengisi tanggal bayar memicu email ke supplier, jadi hanya
+                     boleh dilakukan kontrabon dan hanya selagi masih pending. --}}
+                @if ($data->status === \App\Enums\TukarFakturStatus::Pending && auth()->user()->can('setPaymentDate', $data))
+                    <form
+                        method="POST"
                         action="{{ route('admin.tukar-faktur.payment-date', $data->id) }}"
-                        class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                        class="flex flex-col gap-4 sm:flex-row sm:items-end"
+                    >
                         @csrf
 
-                        <div>
-                            <label class="block text-xs text-slate-500 mb-1">
-                                Tanggal Pembayaran
-                            </label>
-
-                            <input type="date"
+                        <x-form-field label="Tanggal Pembayaran" name="tanggal_pembayaran" required class="flex-1">
+                            <x-input
+                                type="date"
                                 name="tanggal_pembayaran"
-                                value="{{ $data->tanggal_pembayaran }}"
-                                class="w-full rounded-md border-slate-300 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                required>
-                        </div>
+                                :value="$data->tanggal_pembayaran"
+                                required
+                            />
+                        </x-form-field>
 
-                        <div>
-                            <button
-                                class="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700">
-                                Simpan Pembayaran
-                            </button>
-                        </div>
+                        <x-button type="submit">Simpan Pembayaran</x-button>
                     </form>
+                @else
+                    <dl>
+                        <x-detail-row label="Tanggal Pembayaran">
+                            {{ $data->tanggal_pembayaran
+                                ? \Carbon\Carbon::parse($data->tanggal_pembayaran)->format('d F Y')
+                                : 'Belum diisi' }}
+                        </x-detail-row>
+                    </dl>
+                @endif
+            </x-card.content>
+        </x-card>
 
-                    @if($data->tanggal_pembayaran)
-                        <p class="text-xs text-slate-500 mt-3">
-                            Terakhir diperbarui:
-                            {{ \Carbon\Carbon::parse($data->tanggal_pembayaran)->format('d M Y') }}
-                        </p>
-                    @endif
-                </div>
-
-                <!-- ACTIONS -->
-                <div class="flex items-center justify-between">
-
-                    <!-- KIRI: Kembali -->
-                    <a href="{{ route('admin.tukar-faktur.index') }}"
-                    class="inline-flex items-center px-4 py-2 rounded-md
-                            border border-slate-300 text-sm text-slate-700
-                            hover:bg-slate-50">
-                        ← Kembali
-                    </a>
-
-                    <!-- KANAN: Submit / Simpan 
-                    <form method="POST" action="{{ route('admin.tukar-faktur.payment-date', $data->id) }}">
-                        @csrf
-                        <button
-                            type="submit"
-                            class="inline-flex items-center px-5 py-2 rounded-md
-                                bg-slate-800 text-white text-sm font-medium
-                                hover:bg-slate-900
-                                focus:outline-none focus:ring-2 focus:ring-slate-400">
-                            Simpan
-                        </button>
-                    </form>-->
-
-                </div>
-
-
-
+        <div>
+            <x-button variant="outline" :href="route('admin.tukar-faktur.index')">
+                <x-icon name="arrow-left" />
+                Kembali
+            </x-button>
         </div>
+
     </div>
+
+    @if ($data->status->isEditable() && auth()->user()->can('update', $data))
+        <x-dialog name="edit-tukar-faktur" max-width="2xl">
+            <x-dialog.header>
+                <x-dialog.title>Edit Tukar Faktur</x-dialog.title>
+                <x-dialog.description>Perbarui informasi faktur.</x-dialog.description>
+            </x-dialog.header>
+
+            <form method="POST" action="{{ route('admin.tukar-faktur.update', $data->id) }}">
+                @csrf
+                @method('PUT')
+
+                <x-dialog.content class="grid gap-4 sm:grid-cols-2">
+                    <x-form-field label="PT Tujuan" name="pt_tujuan">
+                        <x-input type="text" name="pt_tujuan" :value="$data->pt_tujuan" />
+                    </x-form-field>
+
+                    <x-form-field
+                        label="Perusahaan Pengaju"
+                        name="perusahaan_id"
+                        :hint="'Tercatat sebagai: ' . $data->perusahaan_pengaju"
+                    >
+                        {{-- Dibiarkan opsional: data lama bisa saja punya nama yang
+                             belum ada di master. Kosongkan = nama lama dipertahankan. --}}
+                        <x-perusahaan-select
+                            name="perusahaan_id"
+                            :value="$data->perusahaan_id"
+                            :selected-label="$data->perusahaan?->nama ?? $data->perusahaan_pengaju"
+                            target-pic="#edit-nama-pic"
+                            target-email="#edit-email-penerima"
+                            target-top="#edit-info-top"
+                            placeholder="Ketik nama supplier…"
+                            ringkas
+                        />
+
+                        <p id="edit-info-top" class="text-xs text-info empty:hidden"></p>
+                    </x-form-field>
+
+                    <x-form-field label="Tanggal Tukar" name="tanggal_tukar">
+                        <x-input type="date" name="tanggal_tukar" :value="$data->tanggal_tukar" />
+                    </x-form-field>
+
+                    <x-form-field label="No Kwitansi" name="no_kwitansi">
+                        <x-input type="text" name="no_kwitansi" :value="$data->no_kwitansi" />
+                    </x-form-field>
+
+                    <x-form-field label="Jumlah Rupiah" name="jumlah_rupiah">
+                        <x-input type="number" name="jumlah_rupiah" :value="$data->jumlah_rupiah" />
+                    </x-form-field>
+
+                    <x-form-field label="Nama PIC" name="nama_pic">
+                        <x-input type="text" name="nama_pic" id="edit-nama-pic" :value="$data->nama_pic" />
+                    </x-form-field>
+
+                    <x-form-field label="Email Penerima" name="email_penerima" class="sm:col-span-2">
+                        <x-input
+                            type="email"
+                            name="email_penerima"
+                            id="edit-email-penerima"
+                            :value="$data->email_penerima"
+                        />
+                    </x-form-field>
+                </x-dialog.content>
+
+                <x-dialog.footer>
+                    <x-button type="button" variant="outline" x-on:click="$dispatch('close-modal', 'edit-tukar-faktur')">
+                        Batal
+                    </x-button>
+
+                    <x-button type="submit">Simpan Perubahan</x-button>
+                </x-dialog.footer>
+            </form>
+        </x-dialog>
+    @endif
 </x-app-layout>

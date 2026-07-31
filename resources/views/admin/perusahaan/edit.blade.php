@@ -1,40 +1,37 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="text-lg font-semibold text-slate-800">
-            Edit Perusahaan
-        </h2>
+    <x-slot name="title">Edit Perusahaan</x-slot>
+
+    <x-slot name="breadcrumb">
+        <x-breadcrumb :items="[
+            ['label' => 'Master Perusahaan', 'url' => route('admin.perusahaan.index')],
+            ['label' => $perusahaan->nama, 'url' => route('admin.perusahaan.show', $perusahaan->id)],
+            ['label' => 'Edit'],
+        ]" />
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-4xl">
+        <form method="POST" action="{{ route('admin.perusahaan.update', $perusahaan->id) }}">
+            @csrf
+            @method('PUT')
 
-            <form method="POST"
-                  action="{{ route('admin.perusahaan.update', $perusahaan->id) }}"
-                  class="space-y-6">
-                @csrf
-                @method('PUT')
+            <x-card>
+                <x-card.header>
+                    <x-card.title>Data Perusahaan</x-card.title>
+                    <x-card.description>Perbarui informasi supplier.</x-card.description>
+                </x-card.header>
 
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <h3 class="text-sm font-semibold text-slate-700 mb-4">
-                        Data Perusahaan
-                    </h3>
-
+                <x-card.content>
                     @include('admin.perusahaan._form', ['perusahaan' => $perusahaan])
-                </div>
+                </x-card.content>
 
-                <div class="flex justify-end gap-3">
-                    <a href="{{ route('admin.perusahaan.index') }}"
-                       class="px-4 py-2 border border-slate-300 rounded-md text-sm">
+                <x-card.footer class="justify-end gap-2">
+                    <x-button type="button" variant="outline" :href="route('admin.perusahaan.index')">
                         Batal
-                    </a>
+                    </x-button>
 
-                    <button type="submit"
-                            class="px-6 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">
-                        Simpan Perubahan
-                    </button>
-                </div>
-            </form>
-
-        </div>
+                    <x-button type="submit">Simpan Perubahan</x-button>
+                </x-card.footer>
+            </x-card>
+        </form>
     </div>
 </x-app-layout>

@@ -1,137 +1,132 @@
 <x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div>
-                <h2 class="text-lg font-semibold text-slate-800">
-                    {{ $perusahaan->nama }}
-                </h2>
-                <p class="text-sm text-slate-500">
-                    Detail master data perusahaan
-                </p>
-            </div>
+    <x-slot name="title">{{ $perusahaan->nama }}</x-slot>
 
-            <a href="{{ route('admin.perusahaan.edit', $perusahaan->id) }}"
-               class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">
-                Edit
-            </a>
-        </div>
+    <x-slot name="breadcrumb">
+        <x-breadcrumb :items="[
+            ['label' => 'Master Perusahaan', 'url' => route('admin.perusahaan.index')],
+            ['label' => $perusahaan->nama],
+        ]" />
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div class="mx-auto max-w-5xl space-y-6">
 
-            <!-- INFORMASI -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <div class="text-sm text-slate-500">Total Tukar Faktur</div>
-                        <div class="text-2xl font-semibold text-slate-800">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="space-y-1">
+                <h1 class="text-xl font-semibold tracking-tight">{{ $perusahaan->nama }}</h1>
+                <p class="text-sm text-muted-foreground">Detail master data perusahaan</p>
+            </div>
+
+            <x-button :href="route('admin.perusahaan.edit', $perusahaan->id)">
+                <x-icon name="pencil" />
+                Edit
+            </x-button>
+        </div>
+
+        <x-card>
+            <x-card.content class="space-y-6 pt-6">
+                <div class="flex flex-wrap items-center justify-between gap-6">
+                    <div class="space-y-1">
+                        <p class="text-sm text-muted-foreground">Total Tukar Faktur</p>
+                        <p class="text-2xl font-semibold tabular-nums tracking-tight">
                             {{ $perusahaan->tukar_fakturs_count }}
-                        </div>
+                        </p>
                     </div>
 
-                    <div>
-                        <div class="text-sm text-slate-500">Status</div>
-                        <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium
-                            @class([
-                                'bg-green-100 text-green-700' => $perusahaan->is_active,
-                                'bg-slate-100 text-slate-600' => ! $perusahaan->is_active,
-                            ])">
+                    <div class="space-y-1">
+                        <p class="text-sm text-muted-foreground">Status</p>
+                        <x-badge :variant="$perusahaan->is_active ? 'success' : 'muted'" class="px-3 py-1 text-sm">
                             {{ $perusahaan->is_active ? 'Aktif' : 'Nonaktif' }}
-                        </span>
+                        </x-badge>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-slate-100">
-                    @foreach([
+                <dl class="grid gap-x-6 border-t pt-6 sm:grid-cols-2">
+                    @foreach ([
                         'Kode Perusahaan' => $perusahaan->kode,
                         'Nama Perusahaan' => $perusahaan->nama,
-                        'NPWP'            => $perusahaan->npwp,
-                        'TOP'             => $perusahaan->top !== null ? $perusahaan->top . ' hari' : null,
-                        'Telepon'         => $perusahaan->telepon,
-                        'Alamat'          => $perusahaan->alamat,
-                        'Nama PIC'        => $perusahaan->nama_pic,
-                        'Email'           => $perusahaan->email,
+                        'NPWP' => $perusahaan->npwp,
+                        'TOP' => $perusahaan->top !== null ? $perusahaan->top . ' hari' : null,
+                        'Telepon' => $perusahaan->telepon,
+                        'Alamat' => $perusahaan->alamat,
+                        'Nama PIC' => $perusahaan->nama_pic,
+                        'Email' => $perusahaan->email,
                     ] as $label => $value)
-                        <div>
-                            <label class="block text-xs text-slate-500 mb-1">{{ $label }}</label>
-                            <div class="text-sm text-slate-800 font-medium">
-                                {{ $value ?: '-' }}
-                            </div>
+                        <div class="space-y-1 py-2">
+                            <dt class="text-xs text-muted-foreground">{{ $label }}</dt>
+                            <dd class="text-sm font-medium">{{ $value ?: '-' }}</dd>
                         </div>
                     @endforeach
-                </div>
-            </div>
+                </dl>
+            </x-card.content>
+        </x-card>
 
-            <!-- RIWAYAT TUKAR FAKTUR -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200">
-                <div class="p-6 pb-4">
-                    <h3 class="text-sm font-semibold text-slate-700">
-                        Riwayat Tukar Faktur
-                    </h3>
-                </div>
+        <x-card class="overflow-hidden">
+            <x-card.header>
+                <x-card.title>Riwayat Tukar Faktur</x-card.title>
+            </x-card.header>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-600">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-medium">Tgl Tukar</th>
-                                <th class="px-4 py-3 text-left font-medium">PT Tujuan</th>
-                                <th class="px-4 py-3 text-left font-medium">No Kwitansi</th>
-                                <th class="px-4 py-3 text-left font-medium">Jumlah</th>
-                                <th class="px-4 py-3 text-left font-medium">Status</th>
-                                <th class="px-4 py-3 text-right font-medium">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse($tukarFakturs as $row)
-                                <tr class="hover:bg-slate-50 transition">
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        {{ \Carbon\Carbon::parse($row->tanggal_tukar)->format('d M Y') }}
-                                    </td>
-                                    <td class="px-4 py-3">{{ $row->pt_tujuan }}</td>
-                                    <td class="px-4 py-3">{{ $row->no_kwitansi }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap">
-                                        Rp {{ number_format($row->jumlah_rupiah, 0, ',', '.') }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="inline-flex px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
-                                            {{ ucfirst($row->status) }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-right">
-                                        <a href="{{ route('admin.tukar-faktur.show', $row->id) }}"
-                                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md
-                                                  text-xs font-medium text-indigo-600 border border-indigo-200
-                                                  hover:bg-indigo-50 hover:text-indigo-800 transition">
-                                            <i class="bi bi-eye"></i>
-                                            Detail
-                                        </a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="px-4 py-8 text-center text-slate-500">
-                                        Belum ada tukar faktur dari perusahaan ini
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+            <x-table>
+                <x-table.header>
+                    <x-table.row>
+                        <x-table.head>Tgl Tukar</x-table.head>
+                        <x-table.head>PT Tujuan</x-table.head>
+                        <x-table.head>No Kwitansi</x-table.head>
+                        <x-table.head class="text-right">Jumlah</x-table.head>
+                        <x-table.head>Status</x-table.head>
+                        <x-table.head class="text-right">Aksi</x-table.head>
+                    </x-table.row>
+                </x-table.header>
 
-                <div class="px-4 py-3 border-t border-slate-100">
+                <x-table.body>
+                    @forelse ($tukarFakturs as $row)
+                        <x-table.row>
+                            <x-table.cell class="whitespace-nowrap text-muted-foreground">
+                                {{ \Carbon\Carbon::parse($row->tanggal_tukar)->format('d M Y') }}
+                            </x-table.cell>
+
+                            <x-table.cell>{{ $row->pt_tujuan }}</x-table.cell>
+
+                            <x-table.cell class="font-mono text-xs">{{ $row->no_kwitansi }}</x-table.cell>
+
+                            <x-table.cell class="whitespace-nowrap text-right tabular-nums">
+                                Rp {{ number_format($row->jumlah_rupiah, 0, ',', '.') }}
+                            </x-table.cell>
+
+                            <x-table.cell>
+                                <x-badge :status="$row->status" />
+                            </x-table.cell>
+
+                            <x-table.cell class="text-right">
+                                <x-button variant="ghost" size="sm" :href="route('admin.tukar-faktur.show', $row->id)">
+                                    <x-icon name="eye" />
+                                    Detail
+                                </x-button>
+                            </x-table.cell>
+                        </x-table.row>
+                    @empty
+                        <x-table.empty
+                            :colspan="6"
+                            icon="receipt-text"
+                            title="Belum ada tukar faktur"
+                            description="Perusahaan ini belum pernah mengajukan tukar faktur."
+                        />
+                    @endforelse
+                </x-table.body>
+            </x-table>
+
+            @if ($tukarFakturs->hasPages())
+                <div class="border-t px-4 py-3">
                     {{ $tukarFakturs->links() }}
                 </div>
-            </div>
+            @endif
+        </x-card>
 
-            <div>
-                <a href="{{ route('admin.perusahaan.index') }}"
-                   class="text-sm text-slate-500 hover:text-slate-800">
-                    &larr; Kembali ke daftar perusahaan
-                </a>
-            </div>
-
+        <div>
+            <x-button variant="outline" :href="route('admin.perusahaan.index')">
+                <x-icon name="arrow-left" />
+                Kembali ke daftar perusahaan
+            </x-button>
         </div>
+
     </div>
 </x-app-layout>

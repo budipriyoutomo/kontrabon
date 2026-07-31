@@ -17,6 +17,7 @@ class TukarFakturStoreRequest extends FormRequest
     {
         return [
             'pt_tujuan' => ['required', 'string', 'max:255'],
+
             'perusahaan_pengaju' => [
                 'required', 'string', 'max:255',
                 // Harus cocok persis dengan master data perusahaan.
@@ -27,6 +28,7 @@ class TukarFakturStoreRequest extends FormRequest
                     ->where('pt_tujuan', $this->input('pt_tujuan'))
                     ->where('tanggal_tukar', $this->input('tanggal_tukar')),
             ],
+
             'tanggal_tukar' => ['required', 'date', 'after_or_equal:today'],
             'no_kwitansi' => ['required', 'string', 'max:100'],
             'jumlah_rupiah' => ['required', 'numeric', 'min:1'],
@@ -82,6 +84,10 @@ class TukarFakturStoreRequest extends FormRequest
 
     /**
      * Nama perusahaan wajib terdaftar di master dan ditulis sama persis.
+     *
+     * Pencocokan sengaja tidak memakai LIKE: sebagian huruf tidak boleh
+     * dianggap cocok, karena nama inilah yang tersimpan sebagai identitas
+     * pengaju dan yang dipakai aturan unique.
      */
     private function validasiNamaPerusahaan($value, $fail): void
     {
@@ -103,11 +109,20 @@ class TukarFakturStoreRequest extends FormRequest
             return;
         }
 
-        // Ada yang mirip tapi penulisannya beda -> tunjukkan yang benar.
+        // Sampai di sini kandidat pasti hanya berbeda huruf besar/kecil,
+        // karena pencarian di atas menyamakan LOWER(nama) dengan LOWER(input).
+        // Hanya untuk kasus inilah penulisan yang benar boleh disarankan.
         $mirip = $kandidat->first();
 
         if ($mirip) {
-            $fail('Penulisan nama perusahaan harus sama persis dengan yang terdaftar: "' . $mirip->nama . '".');
+            // Dititipkan ke session supaya form bisa menawarkan tombol
+            // "Pakai penulisan ini" — pesan error sendiri hanya berupa teks.
+            $this->session()->flash('saran_perusahaan', $mirip->nama);
+
+            $fail(
+                'Penulisan nama perusahaan belum tepat. Yang terdaftar: "' . $mirip->nama . '". '
+                . 'Bedanya hanya pada huruf besar/kecil — perbaiki penulisannya lalu kirim ulang.'
+            );
 
             return;
         }

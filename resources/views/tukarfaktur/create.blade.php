@@ -1,260 +1,253 @@
-<!doctype html>
-<html lang="id">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<x-public-layout title="Tukar Faktur">
+    <x-slot name="heading">Tukar Faktur Online</x-slot>
 
-    <title>Tukar Faktur Maharasa</title>
+    <x-card class="shadow-sm">
+        <x-card.content class="space-y-5 pt-6">
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <x-alert icon="info">
+                <x-alert.description>
+                    <ul class="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+                        <li>
+                            Pastikan nama supplier ditulis dengan huruf kapital sesuai nama yang terdaftar
+                            dan email sudah diisi dengan benar.
+                        </li>
+                        <li>
+                            Submit total kontrabon tiap PT hanya <strong class="text-foreground">1 kali</strong>.
+                            Contoh: penagihan ke <strong class="text-foreground">PT PANCA ABADI NAN JAYA</strong>
+                            cukup 1x submit, dan penagihan ke
+                            <strong class="text-foreground">PT MAHARASA JAYA ABADI</strong> juga cukup 1x submit.
+                        </li>
+                    </ul>
+                </x-alert.description>
+            </x-alert>
 
-    <!-- Optional icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
-    <style>
-        body {
-            background: linear-gradient(180deg, #f8f9fa, #eef1f4);
-        }
-        .card {
-            border: none;
-            border-radius: 1rem;
-        }
-        .form-control, .form-select {
-            border-radius: .75rem;
-            padding: .75rem 1rem;
-        }
-        .btn-primary {
-            border-radius: .75rem;
-            padding: .75rem;
-            font-weight: 600;
-        }
-        label {
-            font-weight: 500;
-        }
-        .is-invalid {
-            border: 1px solid #dc3545 !important;
-        }
-
-    </style>
-</head>
-
-<body>
-
-<div class="container py-4 py-md-5">
-    <div class="row justify-content-center">
-        <div class="col-12 col-md-8 col-lg-6">
-
-            <div class="card shadow-sm">
-                <div class="card-body p-4 p-md-5">
-
-                    <!-- Header -->
-                    <div class="text-center mb-4">
-                        <h4 class="fw-bold mb-1">Tukar Faktur Online</h4>
-                        <p class="text-muted small mb-0">
-                            Maharasa Group
-                        </p>
-                    </div>
-
-                    <!-- Info -->
-                    <div class="alert alert-light border small mb-4">
-                        <i class="bi bi-info-circle me-1"></i>
-                        <ul class="mb-0 mt-2 ps-3">
-                            <li>Pastikan nama supplier ditulis dengan huruf kapital sesuai dengan nama yang terdaftar dan email sudah diisi dengan benar.</li>
-                            <li>Submit total kontrabon tiap PT hanya <strong>1 kali</strong>. Contoh: penagihan ke <strong>PT PANCA ABADI NAN JAYA</strong> cukup 1x submit, dan penagihan ke <strong>PT MAHARASA JAYA ABADI</strong> juga cukup 1x submit.</li>
+            @if ($errors->any())
+                <x-alert variant="destructive" icon="triangle-alert" id="ringkasan-error" tabindex="-1">
+                    <x-alert.title>
+                        Pengajuan belum tersimpan — {{ $errors->count() }} hal perlu diperbaiki
+                    </x-alert.title>
+                    <x-alert.description>
+                        <ul class="mt-1 list-disc space-y-1 pl-4">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
                         </ul>
-                    </div>
+                    </x-alert.description>
+                </x-alert>
+            @endif
 
-                    @if($errors->any())
-                        <div class="alert alert-danger small mb-4">
-                            <div class="fw-semibold mb-1">
-                                <i class="bi bi-exclamation-triangle me-1"></i>
-                                Pengajuan belum tersimpan
+            <form method="POST" action="/kontrabon" novalidate id="formKontrabon" class="space-y-4">
+                @csrf
+
+                <x-form-field label="Penukaran Faktur ke PT" name="pt_tujuan" required>
+                    <x-select name="pt_tujuan" required>
+                        <option value="">Pilih PT Tujuan</option>
+                        @foreach ($ptTujuan as $pt)
+                            <option value="{{ $pt }}" @selected(old('pt_tujuan') === $pt)>{{ $pt }}</option>
+                        @endforeach
+                    </x-select>
+                </x-form-field>
+
+                {{-- Nama diketik manual dan dicek harus sama persis dengan master.
+                     Sengaja tanpa daftar saran: kecocokan sebagian huruf tidak
+                     boleh diterima. Lihat TukarFakturStoreRequest. --}}
+                <x-form-field
+                    label="Nama Supplier"
+                    name="perusahaan_pengaju"
+                    required
+                    hint="Tulis sama persis seperti nama perusahaan yang terdaftar di Maharasa. Kalau supplier belum terdaftar, hubungi finance Maharasa."
+                >
+                    <x-input
+                        type="text"
+                        name="perusahaan_pengaju"
+                        placeholder="Contoh: PT Vendor Jaya"
+                        :value="old('perusahaan_pengaju')"
+                        autocomplete="off"
+                        :aria-invalid="$errors->has('perusahaan_pengaju') ? 'true' : null"
+                        aria-describedby="saran-perusahaan"
+                        required
+                    />
+
+                    {{-- Hanya muncul kalau bedanya semata huruf besar/kecil.
+                         Nama yang tidak terdaftar tidak pernah disarankan.
+                         Lihat TukarFakturStoreRequest::validasiNamaPerusahaan. --}}
+                    @if (session('saran_perusahaan'))
+                        <div
+                            id="saran-perusahaan"
+                            class="rounded-md border border-info/40 bg-info/10 p-3 text-sm"
+                        >
+                            <div class="flex items-start gap-2">
+                                <x-icon name="lightbulb" class="mt-0.5 text-info" />
+
+                                <div class="min-w-0 flex-1 space-y-2">
+                                    <p class="text-muted-foreground">
+                                        Penulisan yang terdaftar:
+                                        <strong class="break-words font-semibold text-foreground">
+                                            {{ session('saran_perusahaan') }}
+                                        </strong>
+                                    </p>
+
+                                    <x-button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        id="pakai-saran"
+                                        data-saran="{{ session('saran_perusahaan') }}"
+                                    >
+                                        <x-icon name="wand-sparkles" />
+                                        Pakai penulisan ini
+                                    </x-button>
+                                </div>
                             </div>
-                            <ul class="mb-0 ps-3">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
                         </div>
                     @endif
+                </x-form-field>
 
-                    <form method="POST" action="/kontrabon" novalidate id="formKontrabon">
-                        @csrf
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-form-field label="Tanggal Tukar Faktur" name="tanggal_tukar" required>
+                        <x-input
+                            type="date"
+                            name="tanggal_tukar"
+                            :value="old('tanggal_tukar', date('Y-m-d'))"
+                            min="{{ date('Y-m-d') }}"
+                            required
+                        />
+                    </x-form-field>
 
-                        <div class="mb-3">
-                            <label class="form-label">Penukaran Faktur ke PT</label>
-                            <select name="pt_tujuan"
-                                    class="form-select @error('pt_tujuan') is-invalid @enderror"
-                                    required>
-                                <option value="">Pilih PT Tujuan</option>
-                                @foreach($ptTujuan as $pt)
-                                    <option value="{{ $pt }}" @selected(old('pt_tujuan') === $pt)>{{ $pt }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Nama Supplier</label>
-
-                            <input type="text"
-                                   name="perusahaan_pengaju"
-                                   class="form-control @error('perusahaan_pengaju') is-invalid @enderror"
-                                   placeholder="Contoh: PT Vendor Jaya"
-                                   value="{{ old('perusahaan_pengaju') }}"
-                                   autocomplete="off"
-                                   required>
-
-                            <div class="form-text small">
-                                Tulis sama persis seperti nama perusahaan yang terdaftar di Maharasa.
-                            </div>
-
-                            @error('perusahaan_pengaju')
-                                <div class="invalid-feedback d-block">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">Tanggal Tukar Faktur</label>
-                                <input type="date"
-                                        name="tanggal_tukar"
-                                        class="form-control @error('tanggal_tukar') is-invalid @enderror"
-                                        value="{{ old('tanggal_tukar', date('Y-m-d')) }}"
-                                        min="{{ date('Y-m-d') }}"
-                                        required>
-
-                            </div>
-
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">No Kwitansi</label>
-                                <input type="text"
-                                       name="no_kwitansi"
-                                       class="form-control text-uppercase @error('no_kwitansi') is-invalid @enderror"
-                                       placeholder="KW-00123"
-                                       value="{{ old('no_kwitansi') }}"
-                                       required>
-                            </div>
-                        </div>
-
-                        <div class="mb-3 mt-3">
-                            <label class="form-label">Jumlah Rupiah</label>
-                            <input type="number"
-                                   name="jumlah_rupiah"
-                                   class="form-control @error('jumlah_rupiah') is-invalid @enderror"
-                                   placeholder="Contoh: 12500000"
-                                   value="{{ old('jumlah_rupiah') }}"
-                                   required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Nama PIC</label>
-                            <input type="text"
-                                   name="nama_pic"
-                                   class="form-control @error('nama_pic') is-invalid @enderror"
-                                   placeholder="Nama lengkap"
-                                   value="{{ old('nama_pic') }}"
-                                   required>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label">Email Penerima Faktur</label>
-                            <input type="email"
-                                   name="email_penerima"
-                                   class="form-control @error('email_penerima') is-invalid @enderror"
-                                   placeholder="finance@perusahaan.com"
-                                   value="{{ old('email_penerima') }}"
-                                   required>
-                        </div>
-
-                        <button class="btn btn-primary w-100">
-                            <i class="bi bi-send me-1"></i>
-                            Kirim Tukar Faktur
-                        </button>
-                    </form>
-
+                    <x-form-field label="No Kwitansi" name="no_kwitansi" required>
+                        <x-input
+                            type="text"
+                            name="no_kwitansi"
+                            class="uppercase"
+                            placeholder="KW-00123"
+                            :value="old('no_kwitansi')"
+                            required
+                        />
+                    </x-form-field>
                 </div>
-            </div>
 
-            <!-- Footer -->
-            <p class="text-center text-muted small mt-4">
-                © {{ date('Y') }} Maharasa Group
-            </p>
+                <x-form-field label="Jumlah Rupiah" name="jumlah_rupiah" required>
+                    <x-input
+                        type="number"
+                        name="jumlah_rupiah"
+                        placeholder="Contoh: 12500000"
+                        :value="old('jumlah_rupiah')"
+                        required
+                    />
+                </x-form-field>
 
-        </div>
-    </div>
-</div>
+                <x-form-field label="Nama PIC" name="nama_pic" required>
+                    <x-input type="text" name="nama_pic" placeholder="Nama lengkap" :value="old('nama_pic')" required />
+                </x-form-field>
 
-</body>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
+                <x-form-field label="Email Penerima Faktur" name="email_penerima" required>
+                    <x-input
+                        type="email"
+                        name="email_penerima"
+                        placeholder="finance@perusahaan.com"
+                        :value="old('email_penerima')"
+                        required
+                    />
+                </x-form-field>
 
-    const form = document.getElementById('formKontrabon');
-    const emailInput = document.querySelector('input[name="email_penerima"]');
-    const tanggalInput = document.querySelector('input[name="tanggal_tukar"]');
+                <x-button type="submit" size="lg" class="w-full">
+                    <x-icon name="send" />
+                    Kirim Tukar Faktur
+                </x-button>
+            </form>
 
-    // ==============================
-    // NO KWITANSI: selalu huruf kapital
-    // ==============================
-    const kwitansiInput = document.querySelector('input[name="no_kwitansi"]');
+        </x-card.content>
+    </x-card>
 
-    kwitansiInput.addEventListener('input', function () {
-        const pos = this.selectionStart;
-        this.value = this.value.toUpperCase();
-        this.setSelectionRange(pos, pos);
-    });
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
 
-    // ==============================
-    // EMAIL MASKING (lowercase + trim)
-    // ==============================
-    emailInput.addEventListener('input', function () {
-        this.value = this.value.toLowerCase().replace(/\s/g, '');
-    });
+                const form = document.getElementById('formKontrabon');
+                const emailInput = document.querySelector('input[name="email_penerima"]');
+                const tanggalInput = document.querySelector('input[name="tanggal_tukar"]');
+                const kwitansiInput = document.querySelector('input[name="no_kwitansi"]');
+                const supplierInput = document.querySelector('input[name="perusahaan_pengaju"]');
 
-    // ==============================
-    // VALIDASI FORM
-    // ==============================
-    form.addEventListener('submit', function (event) {
+                // Isi ulang nama supplier dengan penulisan resmi dari master.
+                const tombolSaran = document.getElementById('pakai-saran');
 
-        let isValid = true;
+                if (tombolSaran) {
+                    tombolSaran.addEventListener('click', function () {
+                        supplierInput.value = this.dataset.saran;
+                        supplierInput.classList.remove('border-destructive', 'focus-visible:ring-destructive');
+                        supplierInput.focus();
+                    });
+                }
 
-        // Validasi kosong
-        form.querySelectorAll('input, select').forEach(function (field) {
-            if (field.disabled || field.type === 'hidden') {
-                return;
-            }
-            if (!field.value.trim()) {
-                field.classList.add('is-invalid');
-                isValid = false;
-            } else {
-                field.classList.remove('is-invalid');
-            }
-        });
+                // Setelah gagal validasi, bawa perhatian ke ringkasan errornya
+                // dulu — di ponsel panel itu bisa berada jauh di atas layar.
+                const ringkasanError = document.getElementById('ringkasan-error');
 
-        // Validasi tanggal tidak boleh mundur
-        const today = new Date().toISOString().split('T')[0];
-        if (tanggalInput.value < today) {
-            tanggalInput.classList.add('is-invalid');
-            alert('Tanggal tukar faktur tidak boleh sebelum hari ini.');
-            isValid = false;
-        }
+                if (ringkasanError) {
+                    ringkasanError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    ringkasanError.focus({ preventScroll: true });
+                }
 
-        // Validasi format email regex
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailPattern.test(emailInput.value)) {
-            emailInput.classList.add('is-invalid');
-            alert('Format email tidak valid.');
-            isValid = false;
-        }
+                // No kwitansi selalu huruf kapital.
+                kwitansiInput.addEventListener('input', function () {
+                    const pos = this.selectionStart;
+                    this.value = this.value.toUpperCase();
+                    this.setSelectionRange(pos, pos);
+                });
 
-        if (!isValid) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
+                // Email selalu huruf kecil dan tanpa spasi.
+                emailInput.addEventListener('input', function () {
+                    this.value = this.value.toLowerCase().replace(/\s/g, '');
+                });
 
-    });
+                // Tandai field bermasalah dengan warna destructive dari design token.
+                const invalidClasses = ['border-destructive', 'focus-visible:ring-destructive'];
 
-});
-</script>
+                function tandai(field, bermasalah) {
+                    field.classList.toggle(invalidClasses[0], bermasalah);
+                    field.classList.toggle(invalidClasses[1], bermasalah);
+                }
 
-</html>
+                form.addEventListener('submit', function (event) {
+                    let isValid = true;
+
+                    form.querySelectorAll('input, select').forEach(function (field) {
+                        if (field.disabled || field.type === 'hidden') {
+                            return;
+                        }
+
+                        const kosong = ! field.value.trim();
+                        tandai(field, kosong);
+
+                        if (kosong) {
+                            isValid = false;
+                        }
+                    });
+
+                    const today = new Date().toISOString().split('T')[0];
+
+                    if (tanggalInput.value < today) {
+                        tandai(tanggalInput, true);
+                        alert('Tanggal tukar faktur tidak boleh sebelum hari ini.');
+                        isValid = false;
+                    }
+
+                    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                    if (! emailPattern.test(emailInput.value)) {
+                        tandai(emailInput, true);
+                        alert('Format email tidak valid.');
+                        isValid = false;
+                    }
+
+                    if (! isValid) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                });
+
+            });
+        </script>
+    @endpush
+</x-public-layout>

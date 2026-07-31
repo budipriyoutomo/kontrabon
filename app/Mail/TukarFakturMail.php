@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Enums\TukarFakturStatus;
 use App\Models\TukarFaktur;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -44,12 +45,13 @@ class TukarFakturMail extends Mailable implements ShouldQueue
 
     public function __destruct()
     {
-        // Update status
+        // Update status: pending → email_sent. Status setelahnya (verified,
+        // billing) tidak boleh dimundurkan ke sini.
         if ($data = TukarFaktur::find($this->tukarFakturId)) {
-            if ($data->status !== 'email_sent') {
-                $data->update(['status' => 'email_sent']);
+            if ($data->status === TukarFakturStatus::Pending) {
+                $data->update(['status' => TukarFakturStatus::EmailSent]);
             }
         }
-  
+
     }
 }

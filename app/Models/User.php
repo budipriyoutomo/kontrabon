@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -21,6 +22,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_active',
     ];
 
     /**
@@ -41,5 +44,37 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'role' => UserRole::class,
+        'is_active' => 'boolean',
     ];
+
+    /**
+     * Cek apakah user memiliki salah satu peran yang diminta.
+     *
+     * Admin TIDAK otomatis lolos di sini — pengecekan itu ada di
+     * Gate::before dan middleware role, supaya method ini tetap jujur
+     * menjawab "peran user ini apa".
+     */
+    public function hasRole(UserRole|string ...$roles): bool
+    {
+        $current = $this->role?->value;
+
+        foreach ($roles as $role) {
+            if ($current === ($role instanceof UserRole ? $role->value : $role)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::Admin;
+    }
+
+    public function roleLabel(): string
+    {
+        return $this->role?->label() ?? '-';
+    }
 }

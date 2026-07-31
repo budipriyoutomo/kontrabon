@@ -1,38 +1,58 @@
-<section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Update Password') }}
-        </h2>
+<x-card>
+    <x-card.header>
+        <x-card.title>Ubah Kata Sandi</x-card.title>
+        <x-card.description>
+            Pakai kata sandi yang panjang dan acak agar akun tetap aman.
+        </x-card.description>
+    </x-card.header>
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __('Ensure your account is using a long, random password to stay secure.') }}
-        </p>
-    </header>
-
-    <form method="post" action="{{ route('password.update') }}" class="mt-6 space-y-6">
+    <form method="post" action="{{ route('password.update') }}">
         @csrf
         @method('put')
 
-        <div>
-            <x-input-label for="update_password_current_password" :value="__('Current Password')" />
-            <x-text-input id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
-            <x-input-error :messages="$errors->updatePassword->get('current_password')" class="mt-2" />
-        </div>
+        <x-card.content class="space-y-4">
+            <x-form-field
+                label="Kata Sandi Saat Ini"
+                for="update_password_current_password"
+                :messages="$errors->updatePassword->get('current_password')"
+            >
+                <x-input
+                    id="update_password_current_password"
+                    name="current_password"
+                    type="password"
+                    autocomplete="current-password"
+                />
+            </x-form-field>
 
-        <div>
-            <x-input-label for="update_password_password" :value="__('New Password')" />
-            <x-text-input id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
-            <x-input-error :messages="$errors->updatePassword->get('password')" class="mt-2" />
-        </div>
+            <x-form-field
+                label="Kata Sandi Baru"
+                for="update_password_password"
+                :messages="$errors->updatePassword->get('password')"
+            >
+                <x-input
+                    id="update_password_password"
+                    name="password"
+                    type="password"
+                    autocomplete="new-password"
+                />
+            </x-form-field>
 
-        <div>
-            <x-input-label for="update_password_password_confirmation" :value="__('Confirm Password')" />
-            <x-text-input id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
-            <x-input-error :messages="$errors->updatePassword->get('password_confirmation')" class="mt-2" />
-        </div>
+            <x-form-field
+                label="Konfirmasi Kata Sandi"
+                for="update_password_password_confirmation"
+                :messages="$errors->updatePassword->get('password_confirmation')"
+            >
+                <x-input
+                    id="update_password_password_confirmation"
+                    name="password_confirmation"
+                    type="password"
+                    autocomplete="new-password"
+                />
+            </x-form-field>
+        </x-card.content>
 
-        <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+        <x-card.footer class="gap-4">
+            <x-button type="submit">Simpan</x-button>
 
             @if (session('status') === 'password-updated')
                 <p
@@ -40,9 +60,9 @@
                     x-show="show"
                     x-transition
                     x-init="setTimeout(() => show = false, 2000)"
-                    class="text-sm text-gray-600"
-                >{{ __('Saved.') }}</p>
+                    class="text-sm text-muted-foreground"
+                >Tersimpan.</p>
             @endif
-        </div>
+        </x-card.footer>
     </form>
-</section>
+</x-card>

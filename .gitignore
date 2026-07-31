@@ -18,3 +18,6 @@ yarn-error.log
 /.idea
 /.vscode
 .xlsx
+# Git Bash di Windows bikin file beneran kalau ada redirect `> nul`.
+# Kalau sampai ke-commit, repo-nya nggak bisa di-checkout lagi di Windows.
+/nul

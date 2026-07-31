@@ -1,0 +1,181 @@
+/*
+ * Penyelarasan SweetAlert2 dengan design token aplikasi.
+ *
+ * File ini diimpor dari resources/js/sweetalert.js tepat setelah CSS bawaan
+ * SweetAlert, sehingga aturan di sini menang tanpa perlu !important.
+ *
+ * Warna memakai var(--token) langsung, bukan @apply, supaya tetap terbaca
+ * sebagai lapisan override dan otomatis mengikuti tema gelap: variabelnya
+ * sudah dinilai ulang di dalam .dark.
+ */
+
+.swal2-container {
+    backdrop-filter: blur(2px);
+}
+
+.swal2-container.swal2-backdrop-show {
+    background: hsl(var(--foreground) / 0.4);
+}
+
+.app-swal {
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow:
+        0 10px 15px -3px hsl(var(--foreground) / 0.1),
+        0 4px 6px -4px hsl(var(--foreground) / 0.1);
+    padding: 1.5rem;
+    width: 28rem;
+    max-width: calc(100vw - 2rem);
+}
+
+.app-swal__title {
+    color: hsl(var(--foreground));
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.75rem;
+    letter-spacing: -0.01em;
+    padding: 0;
+}
+
+.app-swal__body {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    margin: 0.5rem 0 0;
+    padding: 0;
+}
+
+.app-swal__actions {
+    margin: 1.5rem 0 0;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+/* Tombol mengikuti anatomi <x-button>: tinggi 2.25rem, radius sm, ring fokus. */
+.app-swal__confirm,
+.app-swal__cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.25rem;
+    padding: 0 1rem;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.app-swal__confirm:focus-visible,
+.app-swal__cancel:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}
+
+.app-swal__confirm {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.app-swal__confirm:hover {
+    background: hsl(var(--primary) / 0.9);
+}
+
+.app-swal__confirm--destructive {
+    background: hsl(var(--destructive));
+    color: hsl(var(--destructive-foreground));
+}
+
+.app-swal__confirm--destructive:hover {
+    background: hsl(var(--destructive) / 0.9);
+}
+
+.app-swal__cancel {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--input));
+}
+
+.app-swal__cancel:hover {
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+}
+
+/*
+ * Ikon SweetAlert diwarnai ulang memakai token status. Selector .swal2-icon
+ * ikut disertakan karena warna bawaannya dipasang per-varian ikon.
+ */
+.app-swal__icon {
+    margin: 0 auto 1rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-width: 3px;
+}
+
+.app-swal__icon.swal2-success {
+    border-color: hsl(var(--success) / 0.3);
+    color: hsl(var(--success));
+}
+
+.app-swal__icon.swal2-success [class^='swal2-success-line'] {
+    background-color: hsl(var(--success));
+}
+
+.app-swal__icon.swal2-success .swal2-success-ring {
+    border-color: hsl(var(--success) / 0.3);
+}
+
+.app-swal__icon.swal2-error {
+    border-color: hsl(var(--destructive) / 0.3);
+    color: hsl(var(--destructive));
+}
+
+.app-swal__icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: hsl(var(--destructive));
+}
+
+.app-swal__icon.swal2-warning {
+    border-color: hsl(var(--warning) / 0.4);
+    color: hsl(var(--warning));
+}
+
+.app-swal__icon.swal2-info,
+.app-swal__icon.swal2-question {
+    border-color: hsl(var(--info) / 0.3);
+    color: hsl(var(--info));
+}
+
+/* Elemen yang jarang dipakai tapi tetap harus terbaca di dark mode. */
+.app-swal .swal2-input,
+.app-swal .swal2-textarea,
+.app-swal .swal2-select {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--input));
+    border-radius: calc(var(--radius) - 2px);
+    box-shadow: none;
+    font-size: 0.875rem;
+}
+
+.app-swal .swal2-validation-message {
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border-radius: calc(var(--radius) - 2px);
+}
+
+.app-swal .swal2-close {
+    color: hsl(var(--muted-foreground));
+}
+
+.app-swal .swal2-close:hover {
+    color: hsl(var(--foreground));
+}
+
+.app-swal .swal2-timer-progress-bar {
+    background: hsl(var(--primary) / 0.3);
+}

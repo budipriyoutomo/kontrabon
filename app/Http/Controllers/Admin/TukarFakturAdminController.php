@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\TukarFakturStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Perusahaan;
 use App\Models\TukarFaktur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\TukarFakturMail;
@@ -62,7 +64,7 @@ class TukarFakturAdminController extends Controller
         }
 
         // Status Filter
-        if ($request->filled('status')) {
+        if ($request->filled('status') && in_array($request->status, TukarFakturStatus::values(), true)) {
             $query->where('status', $request->status);
         }
 
@@ -105,9 +107,13 @@ class TukarFakturAdminController extends Controller
             ->sort()
             ->values();
 
-        $data = $query->paginate(20)->withQueryString();
+        $data = $query->with('verifier:id,name')->paginate(20)->withQueryString();
 
-        return view('admin.tukarfaktur.index', compact('data', 'ptTujuanOptions', 'perusahaanOptions'));
+        $statusOptions = TukarFakturStatus::options();
+
+        return view('admin.tukarfaktur.index', compact(
+            'data', 'ptTujuanOptions', 'perusahaanOptions', 'statusOptions'
+        ));
     }
 
     /**
@@ -116,7 +122,7 @@ class TukarFakturAdminController extends Controller
     public function export(Request $request): StreamedResponse
     {
         $query = $this->filteredQuery($request)
-            ->with('perusahaan:id,nama,top')
+            ->with(['perusahaan:id,nama,top', 'verifier:id,name'])
             ->orderBy('id'); // tie-breaker supaya chunk() konsisten
 
         $fileName = 'tukar-faktur-' . now()->format('Ymd-His') . '.csv';
@@ -138,6 +144,9 @@ class TukarFakturAdminController extends Controller
             'Email Penerima',
             'Status',
             'Tanggal Pembayaran',
+            'Diverifikasi Oleh',
+            'Tanggal Verifikasi',
+            'Catatan Verifikasi',
             'Tanggal Input',
         ];
 
@@ -166,10 +175,13 @@ class TukarFakturAdminController extends Controller
                         number_format((float) $row->jumlah_rupiah, 2, ',', ''),
                         $row->nama_pic,
                         $row->email_penerima,
-                        $row->status,
+                        $row->status?->label() ?? '',
                         $row->tanggal_pembayaran
                             ? \Carbon\Carbon::parse($row->tanggal_pembayaran)->format('d/m/Y')
                             : '',
+                        optional($row->verifier)->name ?? '',
+                        optional($row->verified_at)->format('d/m/Y H:i') ?? '',
+                        $row->verified_note ?? '',
                         optional($row->created_at)->format('d/m/Y H:i'),
                     ], ';');
                 }
@@ -183,7 +195,7 @@ class TukarFakturAdminController extends Controller
 
     public function show($id)
     {
-        $data = TukarFaktur::findOrFail($id);
+        $data = TukarFaktur::with('verifier:id,name')->findOrFail($id);
         return view('admin.tukarfaktur.show', compact('data'));
     }
 
@@ -195,9 +207,16 @@ class TukarFakturAdminController extends Controller
 
         $data = TukarFaktur::findOrFail($id);
 
-        // 🚫 Cegah double kirim
-        if ($data->status === 'email_sent') {
-            return back()->with('info', 'Email pembayaran sudah pernah dikirim.');
+        // 🚫 Hanya data yang masih pending yang boleh dikirimi email.
+        // Status setelahnya (email_sent, verified, billing) berarti prosesnya
+        // sudah berjalan dan tidak boleh diulang.
+        if (! $data->status->canTransitionTo(TukarFakturStatus::EmailSent)) {
+            return back()->with(
+                'info',
+                $data->status === TukarFakturStatus::EmailSent
+                    ? 'Email pembayaran sudah pernah dikirim.'
+                    : 'Data sudah ' . $data->status->label() . ', tanggal pembayaran tidak bisa diubah.'
+            );
         }
 
         // 1️⃣ Update tanggal pembayaran
@@ -242,9 +261,13 @@ class TukarFakturAdminController extends Controller
     {
         $data = TukarFaktur::findOrFail($id);
 
-        // Optional: proteksi data tertentu
-        if ($data->status === 'email_sent') {
-            return back()->with('error', 'Data yang sudah dikirim email tidak dapat dihapus.');
+        // Hanya data yang belum diproses sama sekali yang boleh dihapus.
+        // Begitu emailnya terkirim, supplier sudah memegang buktinya.
+        if ($data->status !== TukarFakturStatus::Pending) {
+            return back()->with(
+                'error',
+                'Data berstatus ' . $data->status->label() . ' tidak dapat dihapus.'
+            );
         }
 
         $data->delete();
@@ -257,18 +280,39 @@ class TukarFakturAdminController extends Controller
     public function update(Request $request, $id)
     {
         $data = TukarFaktur::findOrFail($id);
-         
+
+        // Setelah diverifikasi, angkanya sudah dipakai billing — dikunci.
+        if (! $data->status->isEditable()) {
+            return back()->with(
+                'error',
+                'Data berstatus ' . $data->status->label() . ' tidak dapat diubah lagi.'
+            );
+        }
+
         $validated = $request->validate([
-            'jumlah_rupiah' => 'required|numeric|min:0', 
+            'jumlah_rupiah' => 'required|numeric|min:0',
             'pt_tujuan' => 'required|string|max:255',
-            'perusahaan_pengaju' => 'required|string|max:255',
+            // Opsional: data lama bisa punya nama yang belum ada di master.
+            // Dibiarkan kosong berarti nama pengaju yang lama dipertahankan.
+            'perusahaan_id' => ['nullable', Rule::exists('perusahaans', 'id')->whereNull('deleted_at')],
             'tanggal_tukar' => 'required|date',
             'no_kwitansi' => 'required|string|max:255',
             'nama_pic' => 'required|string|max:255',
             'email_penerima' => 'required|email',
             'tanggal_pembayaran' => 'nullable|date',
         ]);
- 
+
+        // Nama pengaju selalu mengikuti master bila suppliernya dipilih ulang.
+        if (! empty($validated['perusahaan_id'])) {
+            $perusahaan = Perusahaan::find($validated['perusahaan_id']);
+
+            if ($perusahaan) {
+                $validated['perusahaan_pengaju'] = $perusahaan->nama;
+            }
+        } else {
+            unset($validated['perusahaan_id']);
+        }
+
         $data->update($validated);
 
         return redirect()
