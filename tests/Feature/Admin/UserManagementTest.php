@@ -137,6 +137,60 @@ class UserManagementTest extends TestCase
         $this->assertSame($passwordLama, $user->fresh()->password);
     }
 
+    public function test_admin_tidak_bisa_mengubah_peran_akun_sendiri(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $admin->id), [
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'role' => UserRole::Billing->value,
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('role');
+
+        $this->assertSame(UserRole::Admin, $admin->fresh()->role);
+    }
+
+    public function test_email_berhuruf_kapital_dinormalkan(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('admin.users.store'), [
+                'name' => 'Huruf Kapital',
+                'email' => '  Staff.Baru@Maharasa.Test ',
+                'role' => UserRole::Kontrabon->value,
+                'is_active' => '1',
+                'password' => 'rahasia-kuat-123',
+                'password_confirmation' => 'rahasia-kuat-123',
+            ])
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', ['email' => 'staff.baru@maharasa.test']);
+    }
+
+    public function test_pengguna_baru_yang_kotak_aktifnya_dicentang_bisa_login(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('admin.users.store'), [
+                'name' => 'Staff Aktif',
+                'email' => 'staff.aktif@maharasa.test',
+                'role' => UserRole::Kontrabon->value,
+                'is_active' => '1',
+                'password' => 'rahasia-kuat-123',
+                'password_confirmation' => 'rahasia-kuat-123',
+            ]);
+
+        $this->assertTrue(User::where('email', 'staff.aktif@maharasa.test')->first()->is_active);
+
+        $this->post(route('login'), [
+            'email' => 'staff.aktif@maharasa.test',
+            'password' => 'rahasia-kuat-123',
+        ]);
+
+        $this->assertAuthenticated();
+    }
+
     public function test_email_harus_unik(): void
     {
         $existing = User::factory()->create(['email' => 'dipakai@maharasa.test']);

@@ -2,6 +2,13 @@
     $user = $user ?? null;
     $isEdit = $user !== null;
     $isSelf = $isEdit && $user->id === auth()->id();
+
+    // Nilai boolean dihitung di sini, bukan lewat direktif @checked/@unless di
+    // dalam tag komponen: Blade hanya mengizinkan @class dan @style di posisi
+    // itu, direktif lain membuat tag <x-...> gagal dikompilasi dan ikut
+    // tercetak mentah ke HTML.
+    $passwordWajib = ! $isEdit;
+    $aktifTercentang = (bool) old('is_active', $user->is_active ?? true);
 @endphp
 
 @if ($errors->any())
@@ -28,7 +35,14 @@
     </x-form-field>
 
     <x-form-field label="Peran" name="role" required class="sm:col-span-2">
-        <x-select name="role" required>
+        {{-- Peran akun sendiri dikunci agar admin tidak menurunkan haknya
+             sendiri. Select-nya dinonaktifkan, jadi nilainya dikirim lewat
+             input tersembunyi supaya form tetap lolos validasi. --}}
+        @if ($isSelf)
+            <input type="hidden" name="role" value="{{ $user->role?->value }}">
+        @endif
+
+        <x-select name="role" required :disabled="$isSelf">
             <option value="">Pilih peran</option>
             @foreach ($roleOptions as $value => $label)
                 <option value="{{ $value }}" @selected(old('role', $user->role?->value ?? '') === $value)>
@@ -36,6 +50,10 @@
                 </option>
             @endforeach
         </x-select>
+
+        @if ($isSelf)
+            <p class="text-xs text-warning">Anda tidak dapat mengubah peran akun sendiri.</p>
+        @endif
 
         <ul class="space-y-0.5 text-xs text-muted-foreground">
             @foreach (\App\Enums\UserRole::cases() as $role)
@@ -50,18 +68,18 @@
     <x-form-field
         label="Password"
         name="password"
-        :required="! $isEdit"
+        :required="$passwordWajib"
         :hint="$isEdit ? 'Kosongkan bila password tidak diubah.' : null"
     >
-        <x-input type="password" name="password" autocomplete="new-password" @unless($isEdit) required @endunless />
+        <x-input type="password" name="password" autocomplete="new-password" :required="$passwordWajib" />
     </x-form-field>
 
-    <x-form-field label="Ulangi Password" name="password_confirmation" :required="! $isEdit">
+    <x-form-field label="Ulangi Password" name="password_confirmation" :required="$passwordWajib">
         <x-input
             type="password"
             name="password_confirmation"
             autocomplete="new-password"
-            @unless($isEdit) required @endunless
+            :required="$passwordWajib"
         />
     </x-form-field>
 
@@ -73,8 +91,8 @@
             <x-checkbox
                 name="is_active"
                 value="1"
-                @checked(old('is_active', $user->is_active ?? true))
-                @disabled($isSelf)
+                :checked="$aktifTercentang"
+                :disabled="$isSelf"
             />
             Akun aktif (boleh login)
         </label>

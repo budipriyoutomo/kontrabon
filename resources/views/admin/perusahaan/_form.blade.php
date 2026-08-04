@@ -78,7 +78,7 @@
             {{-- Input tersembunyi menjaga field tetap terkirim saat kotak tidak dicentang. --}}
             <input type="hidden" name="is_active" value="0">
 
-            <x-checkbox name="is_active" value="1" @checked(old('is_active', $perusahaan->is_active ?? true)) />
+            <x-checkbox name="is_active" value="1" :checked="(bool) old('is_active', $perusahaan->is_active ?? true)" />
             Perusahaan aktif (tampil di form pengajuan tukar faktur)
         </label>
     </div>

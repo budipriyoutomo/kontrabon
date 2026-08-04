@@ -68,6 +68,21 @@ class PageRenderTest extends TestCase
     }
 
     /**
+     * Tag komponen yang gagal dikompilasi ikut tercetak apa adanya ke HTML,
+     * sehingga kontrolnya hilang dari halaman tanpa memicu error apa pun —
+     * halaman tetap 200. Penyebab tersering: direktif Blade selain @class dan
+     * @style dipakai di dalam tag <x-...>, misalnya @checked atau @unless.
+     */
+    private function assertSemuaKomponenTerkompilasi(string $html, string $url): void
+    {
+        $this->assertDoesNotMatchRegularExpression(
+            '/<x-[\w.-]+/',
+            $html,
+            "Halaman {$url} memuat tag komponen Blade yang tidak terkompilasi."
+        );
+    }
+
+    /**
      * @dataProvider halamanAdmin
      */
     public function test_halaman_admin_terender_saat_data_kosong(string $url): void
@@ -76,6 +91,8 @@ class PageRenderTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('bg-sidebar', false);
+
+        $this->assertSemuaKomponenTerkompilasi($response->getContent(), $url);
     }
 
     /**
@@ -85,7 +102,11 @@ class PageRenderTest extends TestCase
     {
         $this->tukarFaktur();
 
-        $this->actingAs($this->admin())->get($url)->assertOk();
+        $response = $this->actingAs($this->admin())->get($url);
+
+        $response->assertOk();
+
+        $this->assertSemuaKomponenTerkompilasi($response->getContent(), $url);
     }
 
     public function test_halaman_detail_tukar_faktur_dan_perusahaan(): void
@@ -103,9 +124,26 @@ class PageRenderTest extends TestCase
             ->assertOk()
             ->assertSee('Riwayat Tukar Faktur');
 
-        $this->actingAs($admin)
-            ->get("/admin/perusahaan/{$tukarFaktur->perusahaan_id}/edit")
-            ->assertOk();
+        $response = $this->actingAs($admin)
+            ->get("/admin/perusahaan/{$tukarFaktur->perusahaan_id}/edit");
+
+        $response->assertOk();
+
+        $this->assertSemuaKomponenTerkompilasi($response->getContent(), 'edit perusahaan');
+    }
+
+    public function test_halaman_edit_pengguna_terender(): void
+    {
+        $admin = $this->admin();
+        $target = User::factory()->role(UserRole::Kontrabon)->create();
+
+        foreach ([$target->id, $admin->id] as $id) {
+            $response = $this->actingAs($admin)->get("/admin/users/{$id}/edit");
+
+            $response->assertOk();
+
+            $this->assertSemuaKomponenTerkompilasi($response->getContent(), "edit pengguna {$id}");
+        }
     }
 
     public function test_halaman_publik_tukar_faktur_tidak_lagi_memuat_bootstrap(): void
