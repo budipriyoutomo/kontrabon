@@ -109,6 +109,34 @@ class UserManagementTest extends TestCase
         $this->assertTrue(Hash::check('password-baru-456', $user->fresh()->password));
     }
 
+    public function test_daftar_pengguna_menampilkan_form_buat_password(): void
+    {
+        $user = User::factory()->role(UserRole::Billing)->create();
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertSee(route('admin.users.reset-password', $user->id), escape: false)
+            ->assertSee('Buat Password Baru');
+    }
+
+    public function test_reset_password_gagal_masuk_error_bag_pengguna_terkait(): void
+    {
+        $user = User::factory()->role(UserRole::Billing)->create();
+        $passwordLama = $user->password;
+
+        $this->actingAs($this->admin())
+            ->from(route('admin.users.index'))
+            ->put(route('admin.users.reset-password', $user->id), [
+                'password' => 'password-baru-456',
+                'password_confirmation' => 'beda-sendiri',
+            ])
+            ->assertRedirect(route('admin.users.index'))
+            ->assertSessionHasErrors('password', errorBag: 'resetPassword' . $user->id);
+
+        $this->assertSame($passwordLama, $user->fresh()->password);
+    }
+
     public function test_email_harus_unik(): void
     {
         $existing = User::factory()->create(['email' => 'dipakai@maharasa.test']);

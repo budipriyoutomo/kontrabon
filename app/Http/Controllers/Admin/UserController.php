@@ -148,12 +148,26 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, User $user)
     {
-        $request->validate([
+        // Error bag dipisah per pengguna karena form reset password berada di
+        // dalam tabel daftar: tanpa ini, satu baris yang gagal validasi akan
+        // memunculkan pesan error di dialog semua baris.
+        $request->validateWithBag(self::resetPasswordBag($user), [
             'password' => ['required', 'confirmed', Password::defaults()],
+        ], [], [
+            'password' => 'password baru',
         ]);
 
         $user->update(['password' => $request->password]);
 
         return back()->with('success', 'Password ' . $user->name . ' berhasil direset.');
+    }
+
+    /**
+     * Nama error bag untuk form reset password satu pengguna. Dipakai bersama
+     * oleh controller dan view daftar pengguna.
+     */
+    public static function resetPasswordBag(User $user): string
+    {
+        return 'resetPassword' . $user->id;
     }
 }

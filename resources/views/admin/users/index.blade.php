@@ -108,10 +108,26 @@
                             </x-table.cell>
 
                             <x-table.cell class="text-right">
-                                <div class="flex justify-end gap-1">
+                                @php
+                                    $resetBag = \App\Http\Controllers\Admin\UserController::resetPasswordBag($row);
+                                    $resetDialog = 'reset-password-' . $row->id;
+                                @endphp
+
+                                <div class="flex flex-wrap justify-end gap-1">
                                     <x-button variant="ghost" size="sm" :href="route('admin.users.edit', $row->id)">
                                         <x-icon name="pencil" />
                                         Edit
+                                    </x-button>
+
+                                    <x-button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        x-data
+                                        x-on:click="$dispatch('open-modal', '{{ $resetDialog }}')"
+                                    >
+                                        <x-icon name="key-round" />
+                                        Password
                                     </x-button>
 
                                     @if ($row->id !== auth()->id())
@@ -137,6 +153,69 @@
                                         </x-button>
                                     @endif
                                 </div>
+
+                                {{-- Dialog dibuka lewat tombol "Password" di baris ini. Bila
+                                     validasi gagal, dialog dibuka ulang otomatis lewat :show. --}}
+                                <x-dialog :name="$resetDialog" :show="$errors->hasBag($resetBag)" max-width="md" focusable>
+                                    <form method="POST" action="{{ route('admin.users.reset-password', $row->id) }}" class="text-left">
+                                        @csrf
+                                        @method('PUT')
+
+                                        <x-dialog.header>
+                                            <x-dialog.title>Buat Password Baru</x-dialog.title>
+                                            <x-dialog.description>
+                                                Password akun <span class="font-medium text-foreground">{{ $row->name }}</span>
+                                                akan langsung diganti. Sampaikan password barunya ke pengguna terkait.
+                                            </x-dialog.description>
+                                        </x-dialog.header>
+
+                                        <x-dialog.content class="space-y-4">
+                                            <x-form-field
+                                                label="Password Baru"
+                                                name="password"
+                                                :for="$resetDialog . '-password'"
+                                                :messages="$errors->getBag($resetBag)->get('password')"
+                                                required
+                                            >
+                                                <x-input
+                                                    type="password"
+                                                    :id="$resetDialog . '-password'"
+                                                    name="password"
+                                                    autocomplete="new-password"
+                                                    required
+                                                />
+                                            </x-form-field>
+
+                                            <x-form-field
+                                                label="Ulangi Password Baru"
+                                                name="password_confirmation"
+                                                :for="$resetDialog . '-password-confirmation'"
+                                                :messages="$errors->getBag($resetBag)->get('password_confirmation')"
+                                                required
+                                            >
+                                                <x-input
+                                                    type="password"
+                                                    :id="$resetDialog . '-password-confirmation'"
+                                                    name="password_confirmation"
+                                                    autocomplete="new-password"
+                                                    required
+                                                />
+                                            </x-form-field>
+                                        </x-dialog.content>
+
+                                        <x-dialog.footer>
+                                            <x-button
+                                                type="button"
+                                                variant="outline"
+                                                x-on:click="$dispatch('close-modal', '{{ $resetDialog }}')"
+                                            >
+                                                Batal
+                                            </x-button>
+
+                                            <x-button type="submit">Simpan Password</x-button>
+                                        </x-dialog.footer>
+                                    </form>
+                                </x-dialog>
                             </x-table.cell>
                         </x-table.row>
                     @empty
