@@ -7,11 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Perusahaan;
 use App\Models\TukarFaktur;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\TukarFakturMail;
+use App\Jobs\KirimEmailTukarFaktur;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
@@ -219,12 +219,10 @@ class TukarFakturAdminController extends Controller
             );
         }
 
-        // 1️⃣ Update tanggal pembayaran
-        $data->update([
-            'tanggal_pembayaran' => $request->tanggal_pembayaran,
-        ]);
-
-        $pdf = PDF::loadView('pdf.tukar-faktur', ['data' => $data]);
+        // Tanggal dipasang di memori dulu supaya ikut tercetak di PDF, tapi
+        // baru disimpan setelah PDF-nya benar-benar jadi. Kalau pembuatan PDF
+        // gagal, datanya tetap utuh dan kontrabon bisa mengulang.
+        $data->tanggal_pembayaran = $request->tanggal_pembayaran;
 
         $fileName = sprintf(
             'tukar-faktur-%s-%s.pdf',
@@ -234,21 +232,39 @@ class TukarFakturAdminController extends Controller
 
         $filePath = 'tukar-faktur/' . $fileName;
 
-        Storage::put($filePath, $pdf->output());
+        try {
+            $pdf = PDF::loadView('pdf.tukar-faktur', ['data' => $data]);
 
-        clearstatcache();
-        usleep(300000);
+            $tersimpan = Storage::put($filePath, $pdf->output());
+        } catch (\Throwable $e) {
+            // Penyebab tersering: ekstensi PHP gd mati, sehingga logo PNG di
+            // template tidak bisa dirender oleh dompdf.
+            Log::error('Gagal membuat PDF tukar faktur.', [
+                'tukar_faktur_id' => $data->id,
+                'error' => $e->getMessage(),
+            ]);
 
-        if (!Storage::exists($filePath)) {
-            return back()->withErrors('Gagal membuat file PDF.');
+            return back()->with(
+                'error',
+                'PDF gagal dibuat sehingga email belum dikirim. Tanggal pembayaran tidak disimpan — '
+                . 'silakan coba lagi atau hubungi admin sistem.'
+            );
         }
 
-        // 4️⃣ Queue email (ASYNC)
-        Mail::to($data->email_penerima)
-            ->queue(new TukarFakturMail(
-                (string) $data->id, // UUID
-                $filePath
-            ));
+        if ($tersimpan === false || ! Storage::exists($filePath)) {
+            Log::error('PDF tukar faktur gagal ditulis ke storage.', [
+                'tukar_faktur_id' => $data->id,
+                'file' => $filePath,
+            ]);
+
+            return back()->with('error', 'File PDF gagal disimpan sehingga email belum dikirim.');
+        }
+
+        $data->save();
+
+        // Status BUKAN dinaikkan di sini. Job yang menaikkannya, dan hanya
+        // setelah server SMTP menerima emailnya.
+        KirimEmailTukarFaktur::dispatch((string) $data->id, $filePath);
 
         // ⚠️ Jangan klaim email terkirim
         return back()->with(
