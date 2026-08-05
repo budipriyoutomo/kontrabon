@@ -35,9 +35,16 @@ class KirimEmailTukarFaktur implements ShouldQueue
     /** Jeda antar percobaan: SMTP yang sedang sibuk butuh waktu pulih. */
     public array $backoff = [60, 300];
 
+    /**
+     * @param  bool  $kirimUlang  Pengiriman ulang atas permintaan kontrabon.
+     *                            Emailnya sudah pernah sampai, jadi status
+     *                            tidak disentuh sama sekali — data yang sudah
+     *                            verified/billing tidak boleh dimundurkan.
+     */
     public function __construct(
         public string $tukarFakturId,
-        public string $filePath
+        public string $filePath,
+        public bool $kirimUlang = false
     ) {}
 
     public function handle(): void
@@ -53,14 +60,7 @@ class KirimEmailTukarFaktur implements ShouldQueue
             return;
         }
 
-        // Penjaga ganda: melindungi dari job kembar dan dari percobaan ulang
-        // setelah emailnya sebenarnya sudah terkirim.
-        if (! $data->status->canTransitionTo(TukarFakturStatus::EmailSent)) {
-            Log::info('Email tukar faktur dilewati, status tidak lagi pending.', [
-                'tukar_faktur_id' => $data->id,
-                'status' => $data->status->value,
-            ]);
-
+        if (! $this->bolehDikirim($data)) {
             return;
         }
 
@@ -72,11 +72,52 @@ class KirimEmailTukarFaktur implements ShouldQueue
             new TukarFakturMail($this->tukarFakturId, $this->filePath)
         );
 
+        if ($this->kirimUlang) {
+            Log::info('Email tukar faktur berhasil dikirim ulang.', [
+                'tukar_faktur_id' => $data->id,
+                'tujuan' => $data->email_penerima,
+            ]);
+
+            return;
+        }
+
         $data->refresh();
 
         if ($data->status->canTransitionTo(TukarFakturStatus::EmailSent)) {
             $data->update(['status' => TukarFakturStatus::EmailSent]);
         }
+    }
+
+    /**
+     * Penjaga status, sekaligus pelindung dari job kembar bila tombolnya
+     * tertekan dua kali.
+     */
+    private function bolehDikirim(TukarFaktur $data): bool
+    {
+        // Kirim ulang hanya masuk akal untuk data yang emailnya memang sudah
+        // pernah dikirim; yang masih pending harus lewat alur normal.
+        if ($this->kirimUlang) {
+            if ($data->status === TukarFakturStatus::Pending) {
+                Log::info('Kirim ulang dilewati, email pertama belum pernah dikirim.', [
+                    'tukar_faktur_id' => $data->id,
+                ]);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        if (! $data->status->canTransitionTo(TukarFakturStatus::EmailSent)) {
+            Log::info('Email tukar faktur dilewati, status tidak lagi pending.', [
+                'tukar_faktur_id' => $data->id,
+                'status' => $data->status->value,
+            ]);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

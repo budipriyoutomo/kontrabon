@@ -5,11 +5,16 @@ namespace Tests\Feature\Admin;
 use App\Enums\TukarFakturStatus;
 use App\Jobs\KirimEmailTukarFaktur;
 use App\Mail\TukarFakturMail;
+use App\Enums\UserRole;
 use App\Models\Perusahaan;
 use App\Models\TukarFaktur;
+use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -126,6 +131,134 @@ class EmailTukarFakturTest extends TestCase
         (new KirimEmailTukarFaktur('00000000-0000-0000-0000-000000000000', $this->filePath))->handle();
 
         Mail::assertNothingSent();
+    }
+
+    public function test_kirim_ulang_tidak_mengubah_status_terverifikasi(): void
+    {
+        $this->siapkanPdf();
+        Mail::fake();
+
+        $data = $this->data(TukarFakturStatus::Verified->value);
+
+        (new KirimEmailTukarFaktur((string) $data->id, $this->filePath, kirimUlang: true))->handle();
+
+        Mail::assertSent(
+            TukarFakturMail::class,
+            fn (TukarFakturMail $mail) => $mail->hasTo('pic@vendor.test')
+        );
+
+        $this->assertSame(TukarFakturStatus::Verified, $data->fresh()->status);
+    }
+
+    public function test_kirim_ulang_atas_data_email_sent_tetap_email_sent(): void
+    {
+        $this->siapkanPdf();
+        Mail::fake();
+
+        $data = $this->data(TukarFakturStatus::EmailSent->value);
+
+        (new KirimEmailTukarFaktur((string) $data->id, $this->filePath, kirimUlang: true))->handle();
+
+        Mail::assertSentCount(1);
+        $this->assertSame(TukarFakturStatus::EmailSent, $data->fresh()->status);
+    }
+
+    public function test_kirim_ulang_ditolak_untuk_data_yang_masih_pending(): void
+    {
+        $this->siapkanPdf();
+        Mail::fake();
+
+        $data = $this->data();
+
+        (new KirimEmailTukarFaktur((string) $data->id, $this->filePath, kirimUlang: true))->handle();
+
+        Mail::assertNothingSent();
+        $this->assertSame(TukarFakturStatus::Pending, $data->fresh()->status);
+    }
+
+    /**
+     * dompdf butuh ekstensi gd untuk logo PNG di template, jadi rendernya
+     * dipalsukan agar pengujian rute tidak bergantung pada konfigurasi PHP
+     * mesin yang menjalankannya.
+     */
+    private function palsukanPdf(): void
+    {
+        Storage::fake('local');
+
+        $pdf = Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('output')->andReturn('%PDF-1.4 dummy');
+
+        Pdf::shouldReceive('loadView')->once()->andReturn($pdf);
+    }
+
+    public function test_kontrabon_bisa_meminta_kirim_ulang_lewat_halaman_detail(): void
+    {
+        $this->palsukanPdf();
+        Queue::fake();
+
+        $data = $this->data(TukarFakturStatus::EmailSent->value);
+
+        $this->actingAs(User::factory()->role(UserRole::Kontrabon)->create())
+            ->from(route('admin.tukar-faktur.show', $data->id))
+            ->post(route('admin.tukar-faktur.resend-email', $data->id))
+            ->assertRedirect(route('admin.tukar-faktur.show', $data->id))
+            ->assertSessionHas('success');
+
+        Queue::assertPushed(
+            KirimEmailTukarFaktur::class,
+            fn (KirimEmailTukarFaktur $job) => $job->tukarFakturId === (string) $data->id
+                && $job->kirimUlang === true
+        );
+
+        $this->assertSame(TukarFakturStatus::EmailSent, $data->fresh()->status);
+    }
+
+    public function test_kirim_ulang_ditolak_lewat_rute_saat_masih_pending(): void
+    {
+        Queue::fake();
+
+        $data = $this->data();
+
+        $this->actingAs(User::factory()->role(UserRole::Kontrabon)->create())
+            ->from(route('admin.tukar-faktur.show', $data->id))
+            ->post(route('admin.tukar-faktur.resend-email', $data->id))
+            ->assertRedirect(route('admin.tukar-faktur.show', $data->id))
+            ->assertSessionHas('info');
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_verifikator_tidak_bisa_kirim_ulang(): void
+    {
+        Queue::fake();
+
+        $data = $this->data(TukarFakturStatus::EmailSent->value);
+
+        $this->actingAs(User::factory()->role(UserRole::Verifikator)->create())
+            ->post(route('admin.tukar-faktur.resend-email', $data->id))
+            ->assertForbidden();
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_tombol_kirim_ulang_hanya_muncul_setelah_email_terkirim(): void
+    {
+        $kontrabon = User::factory()->role(UserRole::Kontrabon)->create();
+
+        $pending = $this->data();
+
+        $this->actingAs($kontrabon)
+            ->get(route('admin.tukar-faktur.show', $pending->id))
+            ->assertOk()
+            ->assertDontSee('Kirim Ulang Email');
+
+        $pending->update(['status' => TukarFakturStatus::EmailSent]);
+
+        $this->actingAs($kontrabon)
+            ->get(route('admin.tukar-faktur.show', $pending->id))
+            ->assertOk()
+            ->assertSee('Kirim Ulang Email')
+            ->assertSee(route('admin.tukar-faktur.resend-email', $pending->id), escape: false);
     }
 
     /**

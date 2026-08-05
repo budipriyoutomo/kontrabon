@@ -51,6 +51,16 @@ class TukarFakturPolicy
     }
 
     /**
+     * Mengirim ulang bukti yang sudah pernah terkirim, misalnya saat supplier
+     * kehilangan emailnya. Sama seperti pengiriman pertama, ini urusan
+     * kontrabon.
+     */
+    public function resendEmail(User $user, TukarFaktur $tukarFaktur): bool
+    {
+        return $user->hasRole(UserRole::Kontrabon);
+    }
+
+    /**
      * Verifikasi dilakukan setelah email bukti terkirim ke supplier.
      */
     public function verify(User $user, TukarFaktur $tukarFaktur): bool

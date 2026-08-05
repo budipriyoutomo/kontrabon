@@ -71,6 +71,10 @@ Route::middleware(['auth'])->prefix('admin')->group(function () {
 
         Route::post('/admin/tukar-faktur/{id}/payment-date', [TukarFakturAdminController::class, 'updatePaymentDate'])->name('admin.tukar-faktur.payment-date');
 
+        // Kirim ulang bukti yang sudah pernah terkirim; tidak mengubah status.
+        Route::post('/tukar-faktur/{id}/resend-email', [TukarFakturAdminController::class, 'resendEmail'])
+            ->name('admin.tukar-faktur.resend-email');
+
         Route::delete('/admin/tukar-faktur/{id}', [TukarFakturAdminController::class, 'destroy'])->name('admin.tukar-faktur.destroy');
 
         Route::put('/admin/tukar-faktur/{id}',[TukarFakturAdminController::class, 'update'])->name('admin.tukar-faktur.update');

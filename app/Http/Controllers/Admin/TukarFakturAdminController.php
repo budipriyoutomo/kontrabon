@@ -224,40 +224,14 @@ class TukarFakturAdminController extends Controller
         // gagal, datanya tetap utuh dan kontrabon bisa mengulang.
         $data->tanggal_pembayaran = $request->tanggal_pembayaran;
 
-        $fileName = sprintf(
-            'tukar-faktur-%s-%s.pdf',
-            $data->no_kwitansi,
-            now()->timestamp
-        );
+        $filePath = $this->buatPdf($data);
 
-        $filePath = 'tukar-faktur/' . $fileName;
-
-        try {
-            $pdf = PDF::loadView('pdf.tukar-faktur', ['data' => $data]);
-
-            $tersimpan = Storage::put($filePath, $pdf->output());
-        } catch (\Throwable $e) {
-            // Penyebab tersering: ekstensi PHP gd mati, sehingga logo PNG di
-            // template tidak bisa dirender oleh dompdf.
-            Log::error('Gagal membuat PDF tukar faktur.', [
-                'tukar_faktur_id' => $data->id,
-                'error' => $e->getMessage(),
-            ]);
-
+        if (! $filePath) {
             return back()->with(
                 'error',
                 'PDF gagal dibuat sehingga email belum dikirim. Tanggal pembayaran tidak disimpan — '
                 . 'silakan coba lagi atau hubungi admin sistem.'
             );
-        }
-
-        if ($tersimpan === false || ! Storage::exists($filePath)) {
-            Log::error('PDF tukar faktur gagal ditulis ke storage.', [
-                'tukar_faktur_id' => $data->id,
-                'file' => $filePath,
-            ]);
-
-            return back()->with('error', 'File PDF gagal disimpan sehingga email belum dikirim.');
         }
 
         $data->save();
@@ -271,6 +245,84 @@ class TukarFakturAdminController extends Controller
             'success',
             'Tanggal pembayaran disimpan. Email sedang diproses untuk dikirim.'
         );
+    }
+
+    /**
+     * Kirim ulang bukti ke supplier, misalnya saat emailnya terhapus atau
+     * masuk spam. Statusnya tidak berubah — data yang sudah terverifikasi
+     * tetap terverifikasi.
+     */
+    public function resendEmail(string $id)
+    {
+        $data = TukarFaktur::findOrFail($id);
+
+        $this->authorize('resendEmail', $data);
+
+        if ($data->status === TukarFakturStatus::Pending) {
+            return back()->with(
+                'info',
+                'Email pertama belum pernah dikirim. Isi tanggal pembayaran terlebih dahulu.'
+            );
+        }
+
+        // PDF lama tidak disimpan jejaknya di database, jadi dibuat ulang dari
+        // data terkini. Isinya sama karena data yang sudah dikirim terkunci.
+        $filePath = $this->buatPdf($data);
+
+        if (! $filePath) {
+            return back()->with(
+                'error',
+                'PDF gagal dibuat sehingga email tidak jadi dikirim ulang. Hubungi admin sistem.'
+            );
+        }
+
+        KirimEmailTukarFaktur::dispatch((string) $data->id, $filePath, kirimUlang: true);
+
+        return back()->with(
+            'success',
+            'Email sedang diproses untuk dikirim ulang ke ' . $data->email_penerima . '.'
+        );
+    }
+
+    /**
+     * Render PDF bukti tukar faktur ke storage.
+     *
+     * @return string|null Path file, atau null bila gagal — pemanggilnya yang
+     *                     menentukan pesan untuk pengguna.
+     */
+    private function buatPdf(TukarFaktur $data): ?string
+    {
+        $filePath = 'tukar-faktur/' . sprintf(
+            'tukar-faktur-%s-%s.pdf',
+            $data->no_kwitansi,
+            now()->timestamp
+        );
+
+        try {
+            $pdf = PDF::loadView('pdf.tukar-faktur', ['data' => $data]);
+
+            $tersimpan = Storage::put($filePath, $pdf->output());
+        } catch (\Throwable $e) {
+            // Penyebab tersering: ekstensi PHP gd mati, sehingga logo PNG di
+            // template tidak bisa dirender oleh dompdf.
+            Log::error('Gagal membuat PDF tukar faktur.', [
+                'tukar_faktur_id' => $data->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if ($tersimpan === false || ! Storage::exists($filePath)) {
+            Log::error('PDF tukar faktur gagal ditulis ke storage.', [
+                'tukar_faktur_id' => $data->id,
+                'file' => $filePath,
+            ]);
+
+            return null;
+        }
+
+        return $filePath;
     }
 
     public function destroy($id)

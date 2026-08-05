@@ -151,6 +151,31 @@
                         </x-detail-row>
                     </dl>
                 @endif
+
+                {{-- Kirim ulang untuk supplier yang kehilangan emailnya. Hanya
+                     muncul setelah email pertama benar-benar terkirim, dan
+                     tidak mengubah status apa pun. --}}
+                @if ($data->status !== \App\Enums\TukarFakturStatus::Pending && auth()->user()->can('resendEmail', $data))
+                    <div class="flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-sm text-muted-foreground">
+                            Bukti sudah dikirim ke <span class="font-medium text-foreground">{{ $data->email_penerima }}</span>.
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="{{ route('admin.tukar-faktur.resend-email', $data->id) }}"
+                            x-data
+                            x-on:submit="$event.target.querySelector('button').disabled = true"
+                        >
+                            @csrf
+
+                            <x-button type="submit" variant="outline" size="sm">
+                                <x-icon name="send" />
+                                Kirim Ulang Email
+                            </x-button>
+                        </form>
+                    </div>
+                @endif
             </x-card.content>
         </x-card>
 
